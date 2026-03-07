@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
-import { analyzeCattleImage } from "@/lib/model-inference";
 import fs from "fs/promises";
 import path from "path";
 import { put } from "@vercel/blob";
@@ -12,6 +11,50 @@ const SUPPORTED_DISEASE_TYPES = new Set([
   "LUMPY_SKIN",
   "ANTHRAX",
 ]);
+
+// Hugging Face API configuration
+const HF_API_URL = process.env.HF_MODEL_API_URL || "https://your-space-name.hf.space/predict";
+
+interface ModelPredictions {
+  healthy: number;
+  footAndMouth: number;
+  lumpySkin: number;
+  anthrax: number;
+  classLabels: string[];
+  classScores: Record<string, number>;
+  detectedDisease: string;
+  confidence: number;
+}
+
+async function analyzeCattleImage(imageBuffer: Buffer): Promise<ModelPredictions> {
+  try {
+    // Create form data with image
+    const formData = new FormData();
+    const blob = new Blob([imageBuffer], { type: "image/jpeg" });
+    formData.append("file", blob, "image.jpg");
+
+    // Call Hugging Face API
+    const response = await fetch(HF_API_URL, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HF API error: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    
+    if (!result.success || !result.predictions) {
+      throw new Error("Invalid response from model API");
+    }
+
+    return result.predictions;
+  } catch (error) {
+    console.error("Model inference error:", error);
+    throw new Error(`Failed to analyze image: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
+}
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(process.cwd(), "public", "uploads");
@@ -328,7 +371,7 @@ export async function POST(req: NextRequest) {
     // Save image and run model inference concurrently
     const filename = buildUploadFileName(imageFile.name);
     const [predictions, imageUrl] = await Promise.all([
-      analyzeCattleImage(imageBuffer, req.nextUrl.origin),
+      analyzeCattleImage(imageBuffer),
       saveImageBuffer({
         filename,
         imageBuffer,

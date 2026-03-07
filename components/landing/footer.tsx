@@ -53,7 +53,7 @@ export function Footer() {
         {/* Bottom */}
         <div className="pt-8 flex flex-col md:flex-row items-center justify-between">
           <p className="text-sm text-muted-foreground text-center md:text-left mb-4 md:mb-0">
-            © 2026 Herd AI, Inc. All rights reserved.
+            © 2026 Herd AI, Inc. Developed by Nicolas Muhigi
           </p>
           <div className="flex gap-6">
             <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy</Link>
