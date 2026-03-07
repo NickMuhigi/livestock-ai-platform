@@ -279,11 +279,12 @@ function SidebarTrigger({
   )
 }
 
-function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
+function SidebarRail({ className, ...props }: React.ComponentProps<'div'>) {
   const { toggleSidebar } = useSidebar()
 
   return (
-    <button
+    <div
+      role="button"
       data-sidebar="rail"
       data-slot="sidebar-rail"
       aria-label="Toggle Sidebar"

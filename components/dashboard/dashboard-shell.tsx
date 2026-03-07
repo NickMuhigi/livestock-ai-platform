@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { Upload, BarChart3, MessageSquare, CalendarCheck, Menu, X, LogOut, Home } from "lucide-react"
 
@@ -22,16 +23,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-card border-r border-border">
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center gap-2.5 px-5 py-5 border-b border-border">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary-foreground">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                <path d="M2 17l10 5 10-5" />
-                <path d="M2 12l10 5 10-5" />
-              </svg>
-            </div>
-            <span className="text-base font-bold text-foreground tracking-tight">LivestockAI</span>
-          </div>
+          <Link href="/" className="flex items-center gap-2.5 px-5 py-5 border-b border-border">
+            <Image
+              src="/Herd-AI Logo.png"
+              alt="Herd AI Logo"
+              width={100}
+              height={100}
+            />
+          </Link>
 
           {/* Nav */}
           <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5">
@@ -72,22 +71,21 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-card/95 backdrop-blur-xl border-b border-border px-4 py-3">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary-foreground">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <span className="text-base font-bold text-foreground">LivestockAI</span>
+          <Image
+            src="/Herd-AI Logo.png"
+            alt="Herd AI Logo"
+            width={100}
+            height={100}
+          />
         </Link>
-        <button
+        <div
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="rounded-lg p-2 text-foreground hover:bg-secondary transition-colors"
+          className="rounded-lg p-2 text-foreground hover:bg-secondary transition-colors cursor-pointer"
+          role="button"
           aria-label={sidebarOpen ? "Close menu" : "Open menu"}
         >
           {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        </div>
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -130,7 +128,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main className="flex-1 lg:pl-64">
-        <div className="pt-16 lg:pt-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="pt-20 lg:pt-8 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
           {children}
         </div>
       </main>

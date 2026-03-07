@@ -2,34 +2,32 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { MessageSquare, CalendarCheck, ImageIcon, AlertTriangle, CheckCircle2, AlertCircle } from "lucide-react"
+import { MessageSquare, CalendarCheck, ImageIcon, AlertTriangle, CheckCircle2, AlertCircle, Shield, Heart } from "lucide-react"
+import { getDiseaseAdvice } from "@/lib/disease-advice"
 
-const results = [
-  {
-    disease: "Foot-and-Mouth Disease",
-    confidence: 94,
-    status: "High Risk",
-    statusColor: "bg-red-500/10 text-red-400 border border-red-500/20",
-    progressColor: "from-red-500 to-red-400",
-    advisory: "Vesicular lesions detected on oral cavity and hooves. Immediate isolation of affected animals recommended. Contact veterinary authorities as this is a reportable disease.",
-  },
-  {
-    disease: "Lumpy Skin Disease",
-    confidence: 42,
-    status: "Moderate",
-    statusColor: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
-    progressColor: "from-amber-500 to-amber-400",
-    advisory: "Possible nodular patterns detected on skin. Further observation recommended. Monitor for fever and lymph node enlargement.",
-  },
-  {
-    disease: "Mastitis",
-    confidence: 18,
-    status: "Low Risk",
-    statusColor: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-    progressColor: "from-emerald-500 to-emerald-400",
-    advisory: "Minor indicators present. Regular hygiene and monitoring should suffice. No immediate action required.",
-  },
-]
+interface AnalysisData {
+  imageUrl?: string
+  detectedDisease?: string
+  confidence?: number
+  classLabels?: string[]
+  classScores?: Record<string, number>
+  predictions?: {
+    healthy?: number
+    footAndMouth?: number
+    lumpySkin?: number
+    anthrax?: number
+  }
+}
+
+interface ResultCard {
+  disease: string
+  confidence: number
+  status: string
+  statusColor: string
+  progressColor: string
+  advisory: string
+  isHealthy: boolean
+}
 
 function AnimatedBar({ target, color }: { target: number; color: string }) {
   const [width, setWidth] = useState(0)
@@ -49,6 +47,119 @@ function AnimatedBar({ target, color }: { target: number; color: string }) {
 }
 
 export default function ResultsPage() {
+  const [analysis, setAnalysis] = useState<AnalysisData | null>(null)
+  const [uploadedPreview, setUploadedPreview] = useState<string | null>(null)
+
+  useEffect(() => {
+    const savedAnalysis = localStorage.getItem("latestAnalysis")
+    const savedPreview = localStorage.getItem("latestUploadedPreview")
+
+    if (savedAnalysis) {
+      try {
+        setAnalysis(JSON.parse(savedAnalysis))
+      } catch {
+        setAnalysis(null)
+      }
+    }
+
+    if (savedPreview) {
+      setUploadedPreview(savedPreview)
+    }
+  }, [])
+
+  const predictions = analysis?.predictions || {}
+  const classLabels = analysis?.classLabels ?? []
+  const classScores = analysis?.classScores ?? {}
+
+  const diseaseNameByKey: Record<string, string> = {
+    HEALTHY: "Healthy",
+    FOOT_AND_MOUTH: "Foot-and-Mouth Disease",
+    LUMPY_SKIN: "Lumpy Skin Disease",
+    ANTHRAX: "Anthrax",
+    MASTITIS: "Mastitis",
+  }
+
+  const legacyScoreByKey: Record<string, number> = {
+    HEALTHY: predictions.healthy ?? 0,
+    FOOT_AND_MOUTH: predictions.footAndMouth ?? 0,
+    LUMPY_SKIN: predictions.lumpySkin ?? 0,
+    ANTHRAX: predictions.anthrax ?? 0,
+  }
+
+  const activeClassKeys = classLabels.length > 0
+    ? classLabels
+    : ["HEALTHY", "FOOT_AND_MOUTH", "LUMPY_SKIN", "ANTHRAX"]
+
+  const predictionRows = activeClassKeys.map((key) => ({
+    key,
+    label: diseaseNameByKey[key] ?? key.replace(/_/g, " "),
+    value: classScores[key] ?? legacyScoreByKey[key] ?? 0,
+  }))
+
+  // Sort to find top result first
+  const sortedRows = [...predictionRows].sort((a, b) => b.value - a.value)
+  const topKey = sortedRows[0]?.key
+  const isHealthyTop = topKey === "HEALTHY"
+
+  const results: ResultCard[] = predictionRows
+    .map((item) => {
+      const confidence = Math.round((item.value || 0) * 100)
+      const isHealthy = item.key === "HEALTHY"
+      const isTopResult = item.key === topKey
+
+      let status: string
+      let statusColor: string
+      let progressColor: string
+
+      // Enhanced styling for HEALTHY - always positive when it's the top result
+      if (isHealthy) {
+        if (isTopResult || confidence >= 80) {
+          status = "Safe & Healthy"
+          statusColor = "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+          progressColor = "from-emerald-400 to-green-500"
+        } else if (confidence >= 50) {
+          status = "Appears Healthy"
+          statusColor = "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+          progressColor = "from-emerald-500 to-emerald-400"
+        } else {
+          status = "Monitor"
+          statusColor = "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+          progressColor = "from-amber-500 to-amber-400"
+        }
+      } else {
+        // Disease detected - use warning colors
+        if (confidence >= 70) {
+          status = "High Risk"
+          statusColor = "bg-red-500/10 text-red-400 border border-red-500/20"
+          progressColor = "from-red-500 to-red-400"
+        } else if (confidence >= 30) {
+          status = "Moderate"
+          statusColor = "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+          progressColor = "from-amber-500 to-amber-400"
+        } else {
+          status = "Low Risk"
+          statusColor = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+          progressColor = "from-emerald-500 to-emerald-400"
+        }
+      }
+
+      return {
+        disease: item.label,
+        confidence,
+        status,
+        statusColor,
+        progressColor,
+        advisory: getDiseaseAdvice(item.key).recommendedAction,
+        isHealthy,
+      }
+    })
+    .sort((a, b) => b.confidence - a.confidence)
+
+  const displayImage = analysis?.imageUrl || uploadedPreview
+  const topResult = results.length > 0 ? results[0] : null
+  const topConfidence = topResult?.confidence ?? 0
+  const isTopHealthy = topResult?.isHealthy ?? false
+
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-8">
@@ -63,19 +174,35 @@ export default function ResultsPage() {
         <div className="lg:w-2/5">
           <div className="rounded-2xl border border-border bg-card p-5 sticky top-8">
             <div className="aspect-square rounded-xl bg-secondary border border-border flex items-center justify-center overflow-hidden">
-              <div className="text-center">
-                <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground/30 mb-2" />
-                <p className="text-sm font-medium text-muted-foreground">livestock_scan_01.jpg</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Uploaded 2 minutes ago</p>
-              </div>
+              {displayImage ? (
+                <img
+                  src={displayImage}
+                  alt="Uploaded livestock"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="text-center">
+                  <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground/30 mb-2" />
+                  <p className="text-sm font-medium text-muted-foreground">No image available</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">Upload and analyze an image first</p>
+                </div>
+              )}
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-secondary border border-border p-3 text-center">
-                <div className="text-lg font-bold text-foreground">3</div>
+                <div className="text-lg font-bold text-foreground">{results.length}</div>
                 <div className="text-xs text-muted-foreground">Diseases Checked</div>
               </div>
-              <div className="rounded-lg bg-secondary border border-border p-3 text-center">
-                <div className="text-lg font-bold text-primary">94%</div>
+              <div className={`rounded-lg border p-3 text-center transition-all ${
+                isTopHealthy
+                  ? "bg-emerald-500/10 border-emerald-500/30"
+                  : "bg-secondary border-border"
+              }`}>
+                <div className={`text-lg font-bold ${
+                  isTopHealthy
+                    ? "text-emerald-400"
+                    : "text-primary"
+                }`}>{topConfidence}%</div>
                 <div className="text-xs text-muted-foreground">Top Confidence</div>
               </div>
             </div>
@@ -84,54 +211,75 @@ export default function ResultsPage() {
 
         {/* Right: Results */}
         <div className="flex-1 space-y-3">
-          {results.map((result) => (
-            <div
-              key={result.disease}
-              className="rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/20"
-            >
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div className="flex items-center gap-3">
-                  {result.confidence >= 70 ? (
-                    <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
-                  ) : result.confidence >= 30 ? (
-                    <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                  )}
-                  <h3 className="text-base font-bold text-foreground">{result.disease}</h3>
+          {results.map((result, index) => {
+            const isTopResult = index === 0
+            const showPositiveStyle = result.isHealthy && isTopResult
+
+            return (
+              <div
+                key={result.disease}
+                className={`rounded-2xl border p-6 transition-all hover:border-primary/20 ${
+                  showPositiveStyle
+                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    : "border-border bg-card"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div className="flex items-center gap-3">
+                    {result.isHealthy ? (
+                      isTopResult ? (
+                        <Shield className="h-5 w-5 text-emerald-400 flex-shrink-0" />
+                      ) : result.confidence >= 50 ? (
+                        <Heart className="h-5 w-5 text-emerald-400 flex-shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                      )
+                    ) : (
+                      <>
+                        {result.confidence >= 70 ? (
+                          <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
+                        ) : result.confidence >= 30 ? (
+                          <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                        )}
+                      </>
+                    )}
+                    <h3 className="text-base font-bold text-foreground">{result.disease}</h3>
+                  </div>
+                  <span className={`flex-shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${result.statusColor}`}>
+                    {result.status}
+                  </span>
                 </div>
-                <span className={`flex-shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${result.statusColor}`}>
-                  {result.status}
-                </span>
-              </div>
 
-              <div className="flex items-center gap-3 mb-4">
-                <AnimatedBar target={result.confidence} color={result.progressColor} />
-                <span className="text-sm font-bold text-foreground w-10 text-right">{result.confidence}%</span>
-              </div>
-
-              <p className="text-sm leading-relaxed text-muted-foreground">{result.advisory}</p>
-
-              {result.confidence >= 50 && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Link
-                    href="/dashboard/assistant"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
-                  >
-                    <MessageSquare className="h-3 w-3" />
-                    Talk to AI Assistant
-                  </Link>
-                  <Link
-                    href="/dashboard/booking"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
-                  >
-                    <CalendarCheck className="h-3 w-3" />
-                    Request Vet Support
-                  </Link>
+                <div className="flex items-center gap-3 mb-4">
+                  <AnimatedBar target={result.confidence} color={result.progressColor} />
+                  <span className="text-sm font-bold text-foreground w-10 text-right">{result.confidence}%</span>
                 </div>
-              )}
-            </div>
-          ))}
+
+                <p className="text-sm leading-relaxed text-muted-foreground">{result.advisory}</p>
+
+                {result.confidence >= 50 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Link
+                      href="/dashboard/assistant"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      Talk to AI Assistant
+                    </Link>
+                    <Link
+                      href="/dashboard/booking"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
+                    >
+                      <CalendarCheck className="h-3 w-3" />
+                      Request Vet Support
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>

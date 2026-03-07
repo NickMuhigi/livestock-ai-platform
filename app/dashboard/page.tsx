@@ -1,42 +1,141 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Upload, ImageIcon, X, Loader2, CheckCircle2 } from "lucide-react"
+import { toast } from "sonner"
+
+interface UploadItem {
+  file: File
+  previewUrl: string
+}
+
+interface GeoCoordinates {
+  latitude: number
+  longitude: number
+}
+
+function getCurrentCoordinates(): Promise<GeoCoordinates | null> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      resolve(null)
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        })
+      },
+      () => resolve(null),
+      {
+        enableHighAccuracy: false,
+        timeout: 7000,
+        maximumAge: 1000 * 60 * 10,
+      }
+    )
+  })
+}
 
 export default function UploadPage() {
   const router = useRouter()
-  const [files, setFiles] = useState<{ name: string; size: string }[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [files, setFiles] = useState<UploadItem[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      files.forEach((item) => URL.revokeObjectURL(item.previewUrl))
+    }
+  }, [files])
+
+  const appendFiles = useCallback((incomingFiles: File[]) => {
+    const uploadItems = incomingFiles.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }))
+    setFiles((prev) => [...prev, ...uploadItems])
+  }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-    const droppedFiles = Array.from(e.dataTransfer.files).map((f) => ({
-      name: f.name,
-      size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`,
-    }))
-    setFiles((prev) => [...prev, ...droppedFiles])
-  }, [])
+    const droppedFiles = Array.from(e.dataTransfer.files).filter((file) => file.type.startsWith("image/"))
+    if (droppedFiles.length === 0) {
+      toast.error("Please drop an image file (JPG, PNG, WebP)")
+      return
+    }
+    appendFiles(droppedFiles)
+  }, [appendFiles])
 
   const handleFileSelect = useCallback(() => {
-    const mockFiles = [
-      { name: `livestock_scan_${Date.now()}.jpg`, size: "3.2 MB" },
-    ]
-    setFiles((prev) => [...prev, ...mockFiles])
+    fileInputRef.current?.click()
   }, [])
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || []).filter((file) => file.type.startsWith("image/"))
+    if (selectedFiles.length === 0) {
+      toast.error("Please select an image file (JPG, PNG, WebP)")
+      return
+    }
+    appendFiles(selectedFiles)
+    e.target.value = ""
+  }, [appendFiles])
 
   const removeFile = useCallback((index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index))
+    setFiles((prev) => {
+      const item = prev[index]
+      if (item) {
+        URL.revokeObjectURL(item.previewUrl)
+      }
+      return prev.filter((_, i) => i !== index)
+    })
   }, [])
 
-  const handleAnalyze = useCallback(() => {
+  const handleAnalyze = useCallback(async () => {
+    if (files.length === 0) {
+      toast.error("Please upload at least one image")
+      return
+    }
+
     setIsAnalyzing(true)
-    setTimeout(() => {
+    try {
+      const formData = new FormData()
+      formData.append("image", files[0].file)
+
+      const coordinates = await getCurrentCoordinates()
+      if (coordinates) {
+        formData.append("latitude", String(coordinates.latitude))
+        formData.append("longitude", String(coordinates.longitude))
+      }
+
+      const token = localStorage.getItem("authToken")
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to analyze image")
+      }
+
+      localStorage.setItem("latestAnalysis", JSON.stringify(data.analysis))
+      localStorage.setItem("latestUploadedPreview", files[0].previewUrl)
+      toast.success("Image analyzed successfully")
       router.push("/dashboard/results")
-    }, 2000)
-  }, [router])
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to analyze image"
+      toast.error(message)
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }, [files, router])
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -48,6 +147,15 @@ export default function UploadPage() {
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleInputChange}
+          className="hidden"
+        />
+
         <div
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
           onDragLeave={() => setIsDragging(false)}
@@ -75,30 +183,40 @@ export default function UploadPage() {
           <div className="mt-6 space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selected Files</h3>
             {files.map((file, i) => (
-              <div key={`${file.name}-${i}`} className="flex items-center gap-3 rounded-lg bg-secondary border border-border p-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
-                  <ImageIcon className="h-4 w-4 text-primary" />
+              <div key={`${file.file.name}-${i}`} className="flex items-center gap-3 rounded-lg bg-secondary border border-border p-3">
+                <div className="h-12 w-12 overflow-hidden rounded-md border border-border bg-muted">
+                  <img
+                    src={file.previewUrl}
+                    alt={file.file.name}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">{file.size}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{file.file.name}</p>
+                  <p className="text-xs text-muted-foreground">{(file.file.size / (1024 * 1024)).toFixed(1)} MB</p>
                 </div>
-                <button
+                <div
                   onClick={(e) => { e.stopPropagation(); removeFile(i) }}
-                  className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                  aria-label={`Remove ${file.name}`}
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                  role="button"
+                  aria-label={`Remove ${file.file.name}`}
                 >
                   <X className="h-4 w-4" />
-                </button>
+                </div>
               </div>
             ))}
           </div>
         )}
 
-        <button
-          onClick={handleAnalyze}
-          disabled={files.length === 0 || isAnalyzing}
-          className="mt-6 group flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+        <div
+          onClick={() => {
+            if (files.length > 0 && !isAnalyzing) {
+              handleAnalyze()
+            }
+          }}
+          className={`mt-6 group flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 ${
+            files.length === 0 || isAnalyzing ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+          }`}
         >
           {isAnalyzing ? (
             <>
@@ -111,7 +229,7 @@ export default function UploadPage() {
               Analyze Images
             </>
           )}
-        </button>
+        </div>
       </div>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">

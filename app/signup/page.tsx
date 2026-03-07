@@ -1,8 +1,8 @@
 import { AuthForm } from "@/components/auth/auth-form"
 
 export const metadata = {
-  title: "Sign Up - LivestockAI",
-  description: "Create your free LivestockAI account and start detecting livestock diseases with AI.",
+  title: "Sign Up - Herd AI",
+  description: "Create your free Herd AI account and start detecting livestock diseases with AI.",
 }
 
 export default function SignupPage() {

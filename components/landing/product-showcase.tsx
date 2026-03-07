@@ -1,172 +1,114 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import Link from "next/link"
-import { ArrowRight, Code2, Bell, Package, Shield } from "lucide-react"
-
-const devFeatures = [
-  {
-    icon: Code2,
-    title: "REST & GraphQL API",
-    description:
-      "Rapidly build flexible, production-ready integrations with LivestockAI's comprehensive API.",
-  },
-  {
-    icon: Bell,
-    title: "Notifications & Webhooks",
-    description:
-      "Supercharge your workflows with our dynamic notification and webhook system for real-time alerts.",
-  },
-  {
-    icon: Package,
-    title: "Easy-to-Use SDKs",
-    description:
-      "Integrate complex detection flows easily by using our SDKs to simplify your development process.",
-  },
-  {
-    icon: Shield,
-    title: "Enterprise-Ready Security",
-    description:
-      "LivestockAI's platform offers best-in-class security and compliance practices for operations of all sizes.",
-  },
-]
+import { TrendingUp, Users, Zap } from "lucide-react"
 
 export function ProductShowcase() {
   return (
-    <section id="developers" className="py-24 lg:py-32 border-t border-border">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        {/* Section header */}
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between mb-16 lg:mb-20">
-          <div className="max-w-2xl">
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl text-balance">
-              A Modern Stack for Modern Operations
-            </h2>
-            <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
-              {"LivestockAI's API enables your team to bring your health monitoring product to market quickly. Focus on your customer and product experiences, while our modern tech stack handles the rest."}
-            </p>
+    <section id="stats" className="py-24 lg:py-32 relative scroll-mt-28">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Animated grid pattern */}
+        <svg className="absolute inset-0 w-full h-full opacity-5" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="grid-showcase" width="50" height="50" patternUnits="userSpaceOnUse">
+              <path d="M 50 0 L 0 0 0 50" fill="none" stroke="currentColor" strokeWidth="0.5"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid-showcase)" />
+        </svg>
+      </div>
+
+      <div className="mx-auto max-w-6xl px-6 lg:px-8 relative z-10">
+        {/* Large stat cards - Creative layout */}
+        <div className="mb-24">
+          <div className="mb-12">
+            <h2 className="text-4xl md:text-5xl font-black text-foreground mb-4">Stats</h2>
+            <h3 className="text-2xl md:text-3xl font-bold text-foreground animate-fade-in-up">
+              Already trusted by farms
+            </h3>
           </div>
-          <div className="flex gap-3">
-            <Link
-              href="/signup"
-              className="group flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90"
-            >
-              Start Building
-              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-            <Link
-              href="#"
-              className="group flex items-center gap-1.5 rounded-lg border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
-            >
-              Read Docs
-              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-            </Link>
+          
+          <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+            {/* Stat 1 */}
+            <div className="group relative rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 to-primary/5 p-10 overflow-hidden transition-all duration-300 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/20 animate-fade-in-up">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/0 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="relative">
+                <div className="inline-flex items-center justify-center rounded-xl bg-primary/10 p-3 mb-6">
+                  <TrendingUp className="h-6 w-6 text-primary" />
+                </div>
+                <div className="text-5xl md:text-6xl font-black text-primary mb-2">50K+</div>
+                <p className="text-sm text-muted-foreground">Images analyzed daily</p>
+              </div>
+            </div>
+
+            {/* Stat 2 */}
+            <div className="group relative rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 p-10 overflow-hidden transition-all duration-300 hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/20 animate-fade-in-up" style={{animationDelay: '0.1s'}}>
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="relative">
+                <div className="inline-flex items-center justify-center rounded-xl bg-emerald-500/10 p-3 mb-6">
+                  <Users className="h-6 w-6 text-emerald-500" />
+                </div>
+                <div className="text-5xl md:text-6xl font-black text-emerald-500 mb-2">500+</div>
+                <p className="text-sm text-muted-foreground">Active farms</p>
+              </div>
+            </div>
+
+            {/* Stat 3 */}
+            <div className="group relative rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 p-10 overflow-hidden transition-all duration-300 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/20 animate-fade-in-up" style={{animationDelay: '0.2s'}}>
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="relative">
+                <div className="inline-flex items-center justify-center rounded-xl bg-cyan-500/10 p-3 mb-6">
+                  <Zap className="h-6 w-6 text-cyan-500" />
+                </div>
+                <div className="text-5xl md:text-6xl font-black text-cyan-500 mb-2">20+</div>
+                <p className="text-sm text-muted-foreground">Disease types detected</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Code preview mock */}
-        <div className="mb-16 rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <div className="flex gap-1.5">
-              <div className="h-3 w-3 rounded-full bg-muted-foreground/20" />
-              <div className="h-3 w-3 rounded-full bg-muted-foreground/20" />
-              <div className="h-3 w-3 rounded-full bg-muted-foreground/20" />
+        {/* Vet Integration - Creative card */}
+        <div className="group relative rounded-3xl border border-border/50 bg-gradient-to-br from-card to-card/50 p-12 overflow-hidden transition-all duration-300 hover:border-primary/30 animate-fade-in-up" style={{animationDelay: '0.3s'}}>
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          
+          <div className="grid md:grid-cols-2 gap-12 items-center relative z-10">
+            {/* Left side - visual */}
+            <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-primary/5 to-transparent p-8 min-h-[300px] flex items-center justify-center">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary mb-4">
+                  <Users className="h-8 w-8" />
+                </div>
+                <p className="text-muted-foreground text-sm">Expert veterinarians</p>
+                <p className="text-2xl font-bold text-foreground mt-2">Available 24/7</p>
+              </div>
             </div>
-            <span className="ml-2 text-xs text-muted-foreground font-mono">analyze.ts</span>
-          </div>
-          <div className="p-6 font-mono text-sm leading-relaxed">
-            <div className="text-muted-foreground/60">
-              {"// Analyze a livestock image with LivestockAI"}
-            </div>
-            <div className="mt-2">
-              <span className="text-sky-400">{"const"}</span>
-              <span className="text-foreground">{" result "}</span>
-              <span className="text-muted-foreground">{"= "}</span>
-              <span className="text-sky-400">{"await"}</span>
-              <span className="text-amber-400">{" livestockAI"}</span>
-              <span className="text-foreground">{"."}</span>
-              <span className="text-emerald-400">{"analyze"}</span>
-              <span className="text-foreground">{"("}</span>
-              <span className="text-foreground">{"{"}</span>
-            </div>
-            <div className="ml-4">
-              <span className="text-foreground">{"image"}</span>
-              <span className="text-muted-foreground">{": "}</span>
-              <span className="text-amber-300">{"imageBuffer"}</span>
-              <span className="text-foreground">{","}</span>
-            </div>
-            <div className="ml-4">
-              <span className="text-foreground">{"species"}</span>
-              <span className="text-muted-foreground">{": "}</span>
-              <span className="text-primary">{"\"bovine\""}</span>
-              <span className="text-foreground">{","}</span>
-            </div>
-            <div className="ml-4">
-              <span className="text-foreground">{"detectionMode"}</span>
-              <span className="text-muted-foreground">{": "}</span>
-              <span className="text-primary">{"\"comprehensive\""}</span>
-              <span className="text-foreground">{","}</span>
-            </div>
+
+            {/* Right side - content */}
             <div>
-              <span className="text-foreground">{"})"}</span>
-            </div>
-            <div className="mt-4 text-muted-foreground/60">
-              {"// Returns: { diseases: [...], confidence: 0.94, risk: \"high\" }"}
+              <h3 className="text-3xl font-black text-foreground mb-4">Professional vet support</h3>
+              <p className="text-muted-foreground mb-6 leading-relaxed">
+                Connect directly with qualified veterinarians for expert consultation. Share health records instantly and get treatment recommendations tailored to your herd.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary text-sm font-bold mt-0.5">✓</span>
+                  <span className="text-sm text-foreground">Instant expert consultations</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary text-sm font-bold mt-0.5">✓</span>
+                  <span className="text-sm text-foreground">Share health records securely</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary text-sm font-bold mt-0.5">✓</span>
+                  <span className="text-sm text-foreground">Track treatments and recovery</span>
+                </li>
+              </ul>
             </div>
           </div>
-        </div>
-
-        {/* Dev feature cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {devFeatures.map((feature, i) => (
-            <DevFeatureCard key={feature.title} feature={feature} index={i} />
-          ))}
         </div>
       </div>
     </section>
   )
 }
 
-function DevFeatureCard({
-  feature,
-  index,
-}: {
-  feature: (typeof devFeatures)[number]
-  index: number
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true)
-          observer.disconnect()
-        }
-      },
-      { threshold: 0.15 }
-    )
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [])
-
-  const Icon = feature.icon
-
-  return (
-    <div
-      ref={ref}
-      className={`rounded-2xl border border-border bg-card p-6 transition-all duration-500 hover:border-primary/30 ${
-        visible ? "animate-fade-in-up opacity-100" : "opacity-0"
-      }`}
-      style={{ animationDelay: `${index * 100}ms` }}
-    >
-      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        <Icon className="h-5 w-5" />
-      </div>
-      <h3 className="text-base font-bold text-foreground mb-2">{feature.title}</h3>
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        {feature.description}
-      </p>
-    </div>
-  )
-}

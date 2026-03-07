@@ -1,87 +1,224 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import { CalendarCheck, CheckCircle2, Clock, MapPin, Star, ArrowRight } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
 
-const vets = [
-  {
-    name: "Dr. Sarah Mitchell",
-    specialty: "Large Animal Specialist",
-    rating: 4.9,
-    reviews: 127,
-    location: "Within 30 miles",
-    initial: "S",
-  },
-  {
-    name: "Dr. James Okonkwo",
-    specialty: "Livestock Disease Expert",
-    rating: 4.8,
-    reviews: 94,
-    location: "Within 15 miles",
-    initial: "J",
-  },
-  {
-    name: "Dr. Maria Chen",
-    specialty: "Bovine Health Specialist",
-    rating: 4.7,
-    reviews: 83,
-    location: "Within 50 miles",
-    initial: "M",
-  },
-]
+interface Vet {
+  id: string
+  name: string
+  email: string
+  district?: string | null
+}
 
-const timeSlots = [
-  "Mon 9:00 AM",
-  "Mon 2:00 PM",
-  "Tue 10:00 AM",
-  "Tue 3:00 PM",
-  "Wed 9:00 AM",
-  "Wed 1:00 PM",
-  "Thu 11:00 AM",
-  "Thu 4:00 PM",
-  "Fri 10:00 AM",
-]
+interface Appointment {
+  id: string
+  appointmentDate: string
+  status: string
+}
 
 export default function BookingPage() {
-  const [selectedVet, setSelectedVet] = useState<number | null>(null)
-  const [selectedSlot, setSelectedSlot] = useState<number | null>(null)
+  const [vets, setVets] = useState<Vet[]>([])
+  const [loadingVets, setLoadingVets] = useState(true)
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [loadingAppointments, setLoadingAppointments] = useState(true)
+  const [selectedVet, setSelectedVet] = useState<string | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
+  const [selectedTime, setSelectedTime] = useState<string | null>(null)
   const [booked, setBooked] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
   const [notes, setNotes] = useState("")
 
-  const handleBook = useCallback(() => {
-    if (selectedVet !== null && selectedSlot !== null) {
-      setBooked(true)
+  // Generate time slots from 12 PM to 5 PM
+  const timeSlots = useMemo(
+    () => [
+      "12:00 PM",
+      "1:00 PM",
+      "2:00 PM",
+      "3:00 PM",
+      "4:00 PM",
+      "5:00 PM",
+    ],
+    []
+  )
+
+  // Fetch vets and appointments on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem("authToken")
+        
+        // Fetch vets
+        const vetsResponse = await fetch("/api/vets", {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        })
+        
+        if (vetsResponse.ok) {
+          const data = await vetsResponse.json()
+          setVets(data.vets || [])
+        } else {
+          const errorData = await vetsResponse.json()
+          console.error("Vets API error:", errorData)
+          setError(`Failed to load vets: ${errorData.error}`)
+        }
+
+        // Fetch user's appointments
+        const appointmentsResponse = await fetch("/api/appointments", {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        })
+        
+        if (appointmentsResponse.ok) {
+          const data = await appointmentsResponse.json()
+          setAppointments(data.appointments || [])
+        } else {
+          const errorData = await appointmentsResponse.json()
+          console.error("Appointments API error:", errorData)
+        }
+      } catch (err) {
+        console.error("Failed to fetch data:", err)
+        setError("Failed to load data")
+      } finally {
+        setLoadingVets(false)
+        setLoadingAppointments(false)
+      }
     }
-  }, [selectedVet, selectedSlot])
+    fetchData()
+  }, [])
+
+  // Helper function to check if a time slot is booked for the selected date
+  const isTimeSlotBooked = useCallback((time: string): boolean => {
+    if (!selectedDate) return false
+
+    const timeParts = time.split(" ")
+    const [hoursStr, minutesStr] = timeParts[0].split(":").map(Number)
+    const isPM = timeParts[1] === "PM"
+    let hours = hoursStr
+
+    // Convert to 24-hour format
+    if (isPM && hours !== 12) {
+      hours += 12
+    } else if (!isPM && hours === 12) {
+      hours = 0
+    }
+
+    const selectedDateTime = new Date(selectedDate)
+    selectedDateTime.setHours(hours, minutesStr || 0, 0, 0)
+
+    // Check if any appointment matches this date and time
+    return appointments.some(apt => {
+      const aptDate = new Date(apt.appointmentDate)
+      return (
+        aptDate.getFullYear() === selectedDateTime.getFullYear() &&
+        aptDate.getMonth() === selectedDateTime.getMonth() &&
+        aptDate.getDate() === selectedDateTime.getDate() &&
+        aptDate.getHours() === selectedDateTime.getHours() &&
+        aptDate.getMinutes() === selectedDateTime.getMinutes()
+      )
+    })
+  }, [selectedDate, appointments])
+
+  const handleBook = useCallback(async () => {
+    if (selectedVet === null || selectedDate === undefined || selectedTime === null) return
+
+    setLoading(true)
+    setError("")
+
+    try {
+      const token = localStorage.getItem("authToken")
+      if (!token) {
+        setError("Not authenticated. Please log in again.")
+        setLoading(false)
+        return
+      }
+
+      // Combine selected date with selected time
+      const timeParts = selectedTime.split(" ")
+      const [hoursStr, minutesStr] = timeParts[0].split(":").map(Number)
+      const isPM = timeParts[1] === "PM"
+      let hours = hoursStr
+      
+      // Convert to 24-hour format
+      if (isPM && hours !== 12) {
+        hours += 12
+      } else if (!isPM && hours === 12) {
+        hours = 0
+      }
+      
+      const appointmentDate = new Date(selectedDate)
+      appointmentDate.setHours(hours, minutesStr || 0, 0, 0)
+
+      const response = await fetch("/api/appointments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          appointmentDate: appointmentDate.toISOString(),
+          reason: notes || "Appointment with veterinary doctor",
+          vetId: selectedVet,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        const errorMsg = Array.isArray(data.error) 
+          ? data.error.map((e: any) => e.message || String(e)).join(", ")
+          : typeof data.error === "string"
+          ? data.error
+          : "Failed to book appointment"
+        throw new Error(errorMsg)
+      }
+
+      // Add new appointment to local state
+      const result = await response.json()
+      if (result.appointment) {
+        setAppointments(prev => [...prev, result.appointment])
+      }
+
+      setBooked(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred")
+      console.error("Booking error:", err)
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedVet, selectedDate, selectedTime, notes])
 
   if (booked) {
+    const selectedVetData = vets.find(v => v.id === selectedVet)
     return (
       <div className="mx-auto max-w-lg flex min-h-[60vh] items-center justify-center">
         <div className="rounded-2xl border border-border bg-card p-10 text-center animate-fade-in-up">
           <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-500/10">
             <CheckCircle2 className="h-7 w-7 text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-bold text-foreground">Appointment Booked!</h2>
+          <h2 className="text-2xl font-bold text-foreground">Appointment Requested!</h2>
           <p className="mt-3 text-sm text-muted-foreground">
-            Your appointment with <span className="font-semibold text-foreground">{vets[selectedVet!].name}</span> has been
-            confirmed for <span className="font-semibold text-foreground">{timeSlots[selectedSlot!]}</span>.
+            Your appointment request with <span className="font-semibold text-foreground">{selectedVetData?.name || "the veterinarian"}</span> has been sent.
           </p>
           <div className="mt-6 rounded-xl bg-primary/5 border border-primary/10 p-4">
             <p className="text-sm text-primary font-medium">
-              A confirmation email has been sent. The vet will also receive your latest analysis results for review.
+              The veterinarian will review your request and send you a confirmation email once they approve the appointment.
             </p>
           </div>
-          <button
+          <div
             onClick={() => {
               setBooked(false)
               setSelectedVet(null)
-              setSelectedSlot(null)
+              setSelectedDate(undefined)
+              setSelectedTime(null)
               setNotes("")
             }}
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 cursor-pointer"
           >
             Book Another
-          </button>
+          </div>
         </div>
       </div>
     )
@@ -99,69 +236,105 @@ export default function BookingPage() {
       {/* Vet selection */}
       <div className="mb-8">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Select a Veterinarian</h2>
-        <div className="flex flex-col gap-2">
-          {vets.map((vet, i) => (
-            <button
-              key={vet.name}
-              onClick={() => setSelectedVet(i)}
-              className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-all ${
-                selectedVet === i
-                  ? "border-primary bg-primary/5"
-                  : "border-border bg-card hover:border-primary/30"
-              }`}
-            >
-              <div className={`flex h-11 w-11 items-center justify-center rounded-lg text-base font-bold ${
-                selectedVet === i
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-muted-foreground border border-border"
-              }`}>
-                {vet.initial}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-foreground">{vet.name}</div>
-                <div className="text-xs text-muted-foreground">{vet.specialty}</div>
-                <div className="mt-1 flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                    <span className="font-semibold text-foreground">{vet.rating}</span>
-                    ({vet.reviews})
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {vet.location}
-                  </span>
+        {loadingVets ? (
+          <div className="flex items-center justify-center py-8">
+            <p className="text-sm text-muted-foreground">Loading veterinarians...</p>
+          </div>
+        ) : vets.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground">No veterinarians available at the moment.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {vets.map((vet) => (
+              <div
+                key={vet.id}
+                onClick={() => setSelectedVet(vet.id)}
+                className={`flex items-center gap-4 rounded-xl border p-4 cursor-pointer transition-all ${
+                  selectedVet === vet.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-card hover:border-primary/30"
+                }`}
+              >
+                <div className={`flex h-11 w-11 items-center justify-center rounded-lg text-base font-bold flex-shrink-0 ${
+                  selectedVet === vet.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground border border-border"
+                }`}>
+                  {vet.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-foreground">{vet.name}</div>
+                  <div className="text-xs text-muted-foreground">{vet.email}</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    <MapPin className="mr-1 inline h-3 w-3" />
+                    {vet.district || "District not listed"}
+                  </div>
+                </div>
+                <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors flex-shrink-0 ${
+                  selectedVet === vet.id
+                    ? "border-primary bg-primary"
+                    : "border-border"
+                }`}>
+                  {selectedVet === vet.id && <CheckCircle2 className="h-3 w-3 text-primary-foreground" />}
                 </div>
               </div>
-              <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors ${
-                selectedVet === i
-                  ? "border-primary bg-primary"
-                  : "border-border"
-              }`}>
-                {selectedVet === i && <CheckCircle2 className="h-3 w-3 text-primary-foreground" />}
-              </div>
-            </button>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Time slot selection */}
-      <div className="mb-8">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Choose a Time Slot</h2>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {timeSlots.map((slot, i) => (
-            <button
-              key={slot}
-              onClick={() => setSelectedSlot(i)}
-              className={`flex items-center justify-center gap-2 rounded-lg p-3 text-sm font-medium transition-all ${
-                selectedSlot === i
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card text-foreground border border-border hover:border-primary/30"
-              }`}
-            >
-              <Clock className="h-3.5 w-3.5" />
-              {slot}
-            </button>
-          ))}
+      {/* Date and Time slot selection */}
+      <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Calendar */}
+        <div>
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Select a Date</h2>
+          <div className="flex justify-center p-4 rounded-xl border border-border bg-card">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              disabled={(date) => {
+                const today = new Date()
+                today.setHours(0, 0, 0, 0)
+                return date < today
+              }}
+              className="w-full"
+            />
+          </div>
+        </div>
+
+        {/* Time slots */}
+        <div>
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Select a Time</h2>
+          {selectedDate ? (
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
+              {timeSlots.map((time) => {
+                const isBooked = isTimeSlotBooked(time)
+                return (
+                  <div
+                    key={time}
+                    onClick={() => !isBooked && setSelectedTime(time)}
+                    className={`flex items-center justify-center gap-2 rounded-lg p-3 text-sm font-medium transition-all ${
+                      isBooked
+                        ? "bg-red-500/10 text-muted-foreground border border-red-500/30 cursor-not-allowed opacity-60"
+                        : selectedTime === time
+                        ? "bg-primary text-primary-foreground cursor-pointer"
+                        : "bg-card text-foreground border border-border hover:border-primary/30 cursor-pointer"
+                    }`}
+                  >
+                    <Clock className="h-3.5 w-3.5" />
+                    {time}
+                    {isBooked && <span className="text-xs ml-1">(Booked)</span>}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border bg-secondary/50 p-8 text-center">
+              <p className="text-sm text-muted-foreground">Select a date to see available times</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -186,14 +359,26 @@ export default function BookingPage() {
       </div>
 
       {/* Submit */}
-      <button
-        onClick={handleBook}
-        disabled={selectedVet === null || selectedSlot === null}
-        className="group flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+      {error && (
+        <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/20 p-3">
+          <p className="text-sm text-red-600 font-medium">{error}</p>
+        </div>
+      )}
+      <div
+        onClick={() => {
+          if (selectedVet !== null && selectedDate !== undefined && selectedTime !== null && !loading) {
+            handleBook()
+          }
+        }}
+        className={`group flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 ${
+          selectedVet === null || selectedDate === undefined || selectedTime === null || loading
+            ? "opacity-50 cursor-not-allowed"
+            : "cursor-pointer"
+        }`}
       >
-        Confirm Booking
-        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-      </button>
+        {loading ? "Booking..." : "Confirm Booking"}
+        {!loading && <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
+      </div>
     </div>
   )
 }

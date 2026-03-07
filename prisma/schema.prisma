@@ -1,0 +1,89 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  VET
+}
+
+enum DiseaseType {
+  HEALTHY
+  FOOT_AND_MOUTH
+  LUMPY_SKIN
+  ANTHRAX
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  name      String
+  password  String
+  role      UserRole   @default(USER)
+  district  String?
+  latitude  Float?
+  longitude Float?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  analyses      Analysis[]
+  appointments  Appointment[]
+  vetAppointments Appointment[] @relation("VetAppointments")
+
+  @@map("users")
+}
+
+model Analysis {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  imageUrl  String
+  uploadDistrict String?
+  uploadLatitude Float?
+  uploadLongitude Float?
+  predictions DiseaseType
+  confidence Float
+  
+  // Prediction probabilities for all diseases
+  healthy   Float
+  footAndMouth Float
+  lumpySkin Float
+  anthrax   Float
+  
+  detectedDisease String
+  advice    String?
+  
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("analyses")
+}
+
+model Appointment {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  vetId     String?
+  vet       User?      @relation("VetAppointments", fields: [vetId], references: [id], onDelete: SetNull)
+  
+  appointmentDate DateTime
+  reason    String?
+  status    String     @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  outcome   String?    // Description of appointment outcome
+  resolutionStatus String? // RESOLVED, IN_PROGRESS, NOT_RESOLVED
+  
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("appointments")
+}
