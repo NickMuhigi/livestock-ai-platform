@@ -4,7 +4,6 @@ services:
     name: livestock-db
     env: docker
     plan: free
-    ipAllowList: []
 
   # FastAPI Backend (Python ML Service)
   - type: web
