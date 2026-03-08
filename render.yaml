@@ -5,6 +5,9 @@ services:
     runtime: python
     plan: free
     buildCommand: |
+      git lfs install
+      git lfs pull
+      test -f cattle_model.keras || (echo "cattle_model.keras is missing from build artifact" && exit 1)
       cd backend
       pip install --upgrade pip
       pip install -r requirements.txt
