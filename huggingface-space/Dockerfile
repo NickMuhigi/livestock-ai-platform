@@ -12,7 +12,6 @@ RUN pip install --no-cache-dir \
     python-multipart==0.0.12
 
 COPY huggingface-space/app.py .
-COPY cattle_model.keras .
 
 EXPOSE 7860
 
