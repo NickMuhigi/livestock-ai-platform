@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from "react"
 import { Send, Bot, User } from "lucide-react"
 import { getDiseaseAdvice } from "@/lib/disease-advice"
+import { parseApiResponse } from "@/lib/http"
 
 interface Message {
   id: string
@@ -270,10 +271,16 @@ export default function AssistantPage() {
         }),
       })
 
-      const payload = await response.json()
+      const parsed = await parseApiResponse<{ response?: string; error?: string }>(
+        response,
+        "Failed to get AI response"
+      )
+
       if (!response.ok) {
-        throw new Error(payload?.error || "Failed to get AI response")
+        throw new Error(parsed.errorMessage || "Failed to get AI response")
       }
+
+      const payload = parsed.data
 
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),

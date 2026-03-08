@@ -6,6 +6,7 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { ArrowRight, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
+import { parseApiResponse } from "@/lib/http"
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter()
@@ -55,14 +56,27 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         body: JSON.stringify(payload),
       })
 
+      const parsed = await parseApiResponse<{
+        token: string
+        message?: string
+        user: {
+          id: string
+          email: string
+          name: string
+          role: "USER" | "VET"
+          district?: string | null
+        }
+      }>(response, `${isLogin ? "Login" : "Sign up"} failed`)
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(
-          errorData.error || `${isLogin ? "Login" : "Sign up"} failed`
-        )
+        throw new Error(parsed.errorMessage || `${isLogin ? "Login" : "Sign up"} failed`)
       }
 
-      const data = await response.json()
+      if (!parsed.data) {
+        throw new Error(parsed.errorMessage || "Invalid server response")
+      }
+
+      const data = parsed.data
 
       // Store token and user info
       localStorage.setItem("authToken", data.token)

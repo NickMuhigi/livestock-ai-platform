@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Upload, ImageIcon, X, Loader2, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
+import { parseApiResponse } from "@/lib/http"
 
 interface UploadItem {
   file: File
@@ -119,13 +120,20 @@ export default function UploadPage() {
         body: formData,
       })
 
-      const data = await response.json()
+      const parsed = await parseApiResponse<{ analysis: unknown; error?: string }>(
+        response,
+        "Failed to analyze image"
+      )
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to analyze image")
+        throw new Error(parsed.errorMessage || "Failed to analyze image")
       }
 
-      localStorage.setItem("latestAnalysis", JSON.stringify(data.analysis))
+      if (!parsed.data || !parsed.data.analysis) {
+        throw new Error(parsed.errorMessage || "Invalid analysis response")
+      }
+
+      localStorage.setItem("latestAnalysis", JSON.stringify(parsed.data.analysis))
       localStorage.setItem("latestUploadedPreview", files[0].previewUrl)
       toast.success("Image analyzed successfully")
       router.push("/dashboard/results")

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react"
 import { CalendarCheck, CheckCircle2, Clock, MapPin, Star, ArrowRight } from "lucide-react"
+import { parseApiResponse } from "@/lib/http"
 import { Calendar } from "@/components/ui/calendar"
 
 interface Vet {
@@ -55,14 +56,17 @@ export default function BookingPage() {
             "Authorization": `Bearer ${token}`,
           },
         })
+
+        const parsedVets = await parseApiResponse<{ vets?: Vet[]; error?: string }>(
+          vetsResponse,
+          "Failed to load vets"
+        )
         
         if (vetsResponse.ok) {
-          const data = await vetsResponse.json()
-          setVets(data.vets || [])
+          setVets(parsedVets.data?.vets || [])
         } else {
-          const errorData = await vetsResponse.json()
-          console.error("Vets API error:", errorData)
-          setError(`Failed to load vets: ${errorData.error}`)
+          console.error("Vets API error:", parsedVets.errorMessage)
+          setError(parsedVets.errorMessage || "Failed to load vets")
         }
 
         // Fetch user's appointments
@@ -71,13 +75,16 @@ export default function BookingPage() {
             "Authorization": `Bearer ${token}`,
           },
         })
+
+        const parsedAppointments = await parseApiResponse<{ appointments?: Appointment[]; error?: string }>(
+          appointmentsResponse,
+          "Failed to load appointments"
+        )
         
         if (appointmentsResponse.ok) {
-          const data = await appointmentsResponse.json()
-          setAppointments(data.appointments || [])
+          setAppointments(parsedAppointments.data?.appointments || [])
         } else {
-          const errorData = await appointmentsResponse.json()
-          console.error("Appointments API error:", errorData)
+          console.error("Appointments API error:", parsedAppointments.errorMessage)
         }
       } catch (err) {
         console.error("Failed to fetch data:", err)
@@ -165,18 +172,17 @@ export default function BookingPage() {
         }),
       })
 
+      const parsed = await parseApiResponse<{ appointment?: Appointment; error?: unknown }>(
+        response,
+        "Failed to book appointment"
+      )
+
       if (!response.ok) {
-        const data = await response.json()
-        const errorMsg = Array.isArray(data.error) 
-          ? data.error.map((e: any) => e.message || String(e)).join(", ")
-          : typeof data.error === "string"
-          ? data.error
-          : "Failed to book appointment"
-        throw new Error(errorMsg)
+        throw new Error(parsed.errorMessage || "Failed to book appointment")
       }
 
       // Add new appointment to local state
-      const result = await response.json()
+      const result = parsed.data
       if (result.appointment) {
         setAppointments(prev => [...prev, result.appointment])
       }

@@ -21,10 +21,10 @@ let loadedModel: tf.LayersModel | null = null;
 let loadedModelPath: string | null = null;
 
 const MODEL_CLASSES = [
-  "HEALTHY",
   "FOOT_AND_MOUTH",
+  "HEALTHY",
   "LUMPY_SKIN",
-  "ANTHRAX",
+  "MASTITIS",
 ] as const;
 
 function getConfiguredModelClasses(outputCount: number): string[] {
@@ -179,19 +179,29 @@ async function runKerasPythonInference(
   });
 
   const configuredPython = process.env.KERAS_PYTHON_BIN?.trim();
-  const pythonCandidates: Array<{ bin: string; argsPrefix: string[] }> = configuredPython
-    ? [{ bin: configuredPython, argsPrefix: [] }]
-    : process.platform === "win32"
-      ? [
-          { bin: "py", argsPrefix: ["-3.11"] },
-          { bin: "py", argsPrefix: ["-3.10"] },
-          { bin: "python", argsPrefix: [] },
-        ]
-      : [
-          { bin: "python3.11", argsPrefix: [] },
-          { bin: "python3", argsPrefix: [] },
-          { bin: "python", argsPrefix: [] },
-        ];
+  const pythonCandidates: Array<{ bin: string; argsPrefix: string[] }> = [];
+
+  if (configuredPython) {
+    pythonCandidates.push({ bin: configuredPython, argsPrefix: [] });
+  } else if (process.platform === "win32") {
+    // Prefer workspace venv to avoid py launcher selecting a different site-packages set.
+    const localVenvPython = path.join(process.cwd(), ".venv", "Scripts", "python.exe");
+    if (await fileExists(localVenvPython)) {
+      pythonCandidates.push({ bin: localVenvPython, argsPrefix: [] });
+    }
+
+    pythonCandidates.push(
+      { bin: "python", argsPrefix: [] },
+      { bin: "py", argsPrefix: ["-3.11"] },
+      { bin: "py", argsPrefix: ["-3.10"] }
+    );
+  } else {
+    pythonCandidates.push(
+      { bin: "python3.11", argsPrefix: [] },
+      { bin: "python3", argsPrefix: [] },
+      { bin: "python", argsPrefix: [] }
+    );
+  }
 
   const runWithPython = (candidate: { bin: string; argsPrefix: string[] }) =>
     new Promise<string>((resolve, reject) => {
@@ -289,7 +299,7 @@ function buildPredictionResult(rawScores: number[]): PredictionResult {
     healthy: classScores.HEALTHY ?? 0,
     footAndMouth: classScores.FOOT_AND_MOUTH ?? 0,
     lumpySkin: classScores.LUMPY_SKIN ?? 0,
-    anthrax: classScores.ANTHRAX ?? 0,
+    anthrax: classScores.ANTHRAX ?? classScores.MASTITIS ?? 0,
     classLabels,
     classScores,
     detectedDisease,

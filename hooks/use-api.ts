@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { parseApiResponse } from "@/lib/http";
 
 interface UseApiOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
@@ -37,14 +38,20 @@ export function useApi<T>(url: string, options?: UseApiOptions) {
         body: options?.body ? JSON.stringify(options.body) : undefined,
       });
 
+      const parsed = await parseApiResponse<T>(
+        response,
+        `API error: ${response.statusText || response.status}`
+      );
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error || `API error: ${response.statusText}`
-        );
+        throw new Error(parsed.errorMessage || `API error: ${response.statusText}`);
       }
 
-      const result = await response.json();
+      if (parsed.data === null) {
+        throw new Error(parsed.errorMessage || "Invalid API response");
+      }
+
+      const result = parsed.data;
       setData(result);
       return result;
     } catch (err) {
@@ -100,14 +107,20 @@ export function useApiMutation<T>(url: string) {
           body: body ? JSON.stringify(body) : undefined,
         });
 
+        const parsed = await parseApiResponse<T>(
+          response,
+          `API error: ${response.statusText || response.status}`
+        );
+
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.error || `API error: ${response.statusText}`
-          );
+          throw new Error(parsed.errorMessage || `API error: ${response.statusText}`);
         }
 
-        return await response.json();
+        if (parsed.data === null) {
+          throw new Error(parsed.errorMessage || "Invalid API response");
+        }
+
+        return parsed.data;
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "An error occurred";

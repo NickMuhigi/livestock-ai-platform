@@ -111,21 +111,11 @@ export default function ResultsPage() {
       let statusColor: string
       let progressColor: string
 
-      // Enhanced styling for HEALTHY - always positive when it's the top result
+      // Enhanced styling for HEALTHY - always show positive green state
       if (isHealthy) {
-        if (isTopResult || confidence >= 80) {
-          status = "Safe & Healthy"
-          statusColor = "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-          progressColor = "from-emerald-400 to-green-500"
-        } else if (confidence >= 50) {
-          status = "Appears Healthy"
-          statusColor = "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-          progressColor = "from-emerald-500 to-emerald-400"
-        } else {
-          status = "Monitor"
-          statusColor = "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-          progressColor = "from-amber-500 to-amber-400"
-        }
+        status = "Safe & Healthy"
+        statusColor = "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+        progressColor = "from-emerald-400 to-green-500"
       } else {
         // Disease detected - use warning colors
         if (confidence >= 70) {
@@ -229,10 +219,8 @@ export default function ResultsPage() {
                     {result.isHealthy ? (
                       isTopResult ? (
                         <Shield className="h-5 w-5 text-emerald-400 flex-shrink-0" />
-                      ) : result.confidence >= 50 ? (
-                        <Heart className="h-5 w-5 text-emerald-400 flex-shrink-0" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                        <Heart className="h-5 w-5 text-emerald-400 flex-shrink-0" />
                       )
                     ) : (
                       <>

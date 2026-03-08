@@ -1,57 +1,101 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
+import {
+  analyzeCattleImage as analyzeCattleImageLocal,
+  type PredictionResult,
+} from "@/lib/model-inference";
 import fs from "fs/promises";
 import path from "path";
 import { put } from "@vercel/blob";
 
-const SUPPORTED_DISEASE_TYPES = new Set([
+const DB_DISEASE_TYPES = new Set([
   "HEALTHY",
   "FOOT_AND_MOUTH",
   "LUMPY_SKIN",
   "ANTHRAX",
 ]);
 
-// Local API configuration
-const MODEL_API_URL = process.env.MODEL_API_URL || "http://127.0.0.1:8010/predict";
+function toDbDiseaseType(detectedDisease: string): string {
+  if (DB_DISEASE_TYPES.has(detectedDisease)) {
+    return detectedDisease;
+  }
 
-interface ModelPredictions {
-  healthy: number;
-  footAndMouth: number;
-  lumpySkin: number;
-  anthrax: number;
-  classLabels: string[];
-  classScores: Record<string, number>;
-  detectedDisease: string;
-  confidence: number;
+  // Database enum currently has no MASTITIS value; store as ANTHRAX-compatible
+  // bucket while keeping exact detected disease in detectedDisease field.
+  if (detectedDisease === "MASTITIS") {
+    return "ANTHRAX";
+  }
+
+  return "HEALTHY";
 }
 
-async function analyzeCattleImage(imageBuffer: Buffer): Promise<ModelPredictions> {
+const MODEL_API_URLS = (
+  process.env.MODEL_API_URLS ||
+  process.env.MODEL_API_URL ||
+  "http://127.0.0.1:7860/predict,http://127.0.0.1:8010/predict"
+)
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
+type ModelPredictions = PredictionResult;
+
+async function analyzeCattleImage(
+  imageBuffer: Buffer,
+  requestOrigin?: string
+): Promise<ModelPredictions> {
+  const apiErrors: string[] = [];
+
+  for (const apiUrl of MODEL_API_URLS) {
+    try {
+      const formData = new FormData();
+      const blob = new Blob([imageBuffer], { type: "image/jpeg" });
+      formData.append("file", blob, "image.jpg");
+
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        apiErrors.push(
+          `${apiUrl} -> ${response.status} ${response.statusText} ${errorText}`.trim()
+        );
+        continue;
+      }
+
+      const result = (await response.json()) as {
+        success?: boolean;
+        predictions?: ModelPredictions;
+      };
+
+      if (!result.success || !result.predictions) {
+        apiErrors.push(`${apiUrl} -> invalid response payload`);
+        continue;
+      }
+
+      return result.predictions;
+    } catch (error) {
+      apiErrors.push(
+        `${apiUrl} -> ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+
   try {
-    const formData = new FormData();
-    const blob = new Blob([imageBuffer], { type: "image/jpeg" });
-    formData.append("file", blob, "image.jpg");
-
-    const response = await fetch(MODEL_API_URL, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API error: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-
-    const result = await response.json();
-
-    if (!result.success || !result.predictions) {
-      throw new Error("Invalid response from model API");
-    }
-
-    return result.predictions;
+    console.warn(
+      "Model API unavailable. Falling back to local inference runtime.",
+      apiErrors
+    );
+    return await analyzeCattleImageLocal(imageBuffer, requestOrigin);
   } catch (error) {
-    console.error("Model inference error:", error);
-    throw new Error(`Failed to analyze image: ${error instanceof Error ? error.message : "Unknown error"}`);
+    const localMessage = error instanceof Error ? error.message : "Unknown error";
+    const apiMessage = apiErrors.length > 0 ? apiErrors.join(" | ") : "No API endpoints configured";
+    throw new Error(
+      `Failed to analyze image: model API unavailable (${apiMessage}). Local fallback failed: ${localMessage}`
+    );
   }
 }
 
@@ -370,7 +414,7 @@ export async function POST(req: NextRequest) {
     // Save image and run model inference concurrently
     const filename = buildUploadFileName(imageFile.name);
     const [predictions, imageUrl] = await Promise.all([
-      analyzeCattleImage(imageBuffer),
+      analyzeCattleImage(imageBuffer, req.nextUrl.origin),
       saveImageBuffer({
         filename,
         imageBuffer,
@@ -378,9 +422,7 @@ export async function POST(req: NextRequest) {
       }),
     ]);
 
-    const dbDiseaseType = SUPPORTED_DISEASE_TYPES.has(predictions.detectedDisease)
-      ? predictions.detectedDisease
-      : "HEALTHY";
+    const dbDiseaseType = toDbDiseaseType(predictions.detectedDisease);
 
     const currentUser = await prisma.user.findUnique({
       where: { id: payload.userId },
