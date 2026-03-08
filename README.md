@@ -139,6 +139,72 @@ Quick flow:
 
 Detailed instructions: `RENDER_DEPLOYMENT.md`
 
+## Deployment Plan (Rubric-Aligned)
+
+This section documents a clear deployment plan with environments, tools, step-by-step execution, and verification checks.
+
+### Target Environments
+
+| Environment | Purpose | URL / Host |
+|---|---|---|
+| Local Development | Feature development and debugging | `http://localhost:3000` |
+| Model Serving (Hosted) | Production image inference API | Hugging Face Space (`https://<space>.hf.space`) |
+| Production App | User-facing deployed application | Render frontend (`https://livestock-frontend.onrender.com`) |
+| Production API Proxy | Server-side model proxy | Render backend (`https://livestock-backend.onrender.com`) |
+
+### Deployment Tools
+
+- Git + GitHub (source control and CI trigger)
+- Render Blueprint (`render.yaml`) for frontend, backend, and PostgreSQL
+- Hugging Face Spaces (Docker) for model-serving API
+- Prisma (`npx prisma migrate deploy`) for production schema migrations
+- `curl` for post-deploy smoke tests
+
+### Step-by-Step Deployment Procedure
+
+1. Prepare release branch and push code to GitHub.
+2. Deploy or update Hugging Face Space from `huggingface-space/`.
+3. Confirm HF Space runtime status is `RUNNING`.
+4. Deploy Render services using `render.yaml` Blueprint.
+5. Set Render environment variables:
+  - Frontend: `DATABASE_URL`, `NEXTAUTH_URL`, `JWT_SECRET`, `MODEL_API_URL` or `MODEL_API_URLS`, optional `GEMINI_API_KEY`
+  - Backend proxy: `HF_SPACE_URL`
+6. Allow frontend build to run Prisma commands during deploy (`npx prisma generate`, `npx prisma migrate deploy`).
+7. Run deployment verification tests (below).
+
+### Deployment Verification (Functionality Tests)
+
+Run these checks in order to verify successful deployment in the target environment.
+
+1. Frontend health endpoint:
+```bash
+curl https://livestock-frontend.onrender.com/api/health
+```
+Expected: JSON with `"status":"healthy"`.
+
+2. Backend proxy health endpoint:
+```bash
+curl https://livestock-backend.onrender.com/health
+```
+Expected: `hf_space_configured: true` and healthy or reachable HF status.
+
+3. HF Space health endpoint:
+```bash
+curl https://<your-space>.hf.space/health
+```
+Expected: runtime reachable; after first prediction, `model_loaded: true`.
+
+4. End-to-end inference test from production flow:
+- Log into deployed app.
+- Upload a cattle image in Dashboard analysis flow.
+- Confirm prediction result, confidence, and saved analysis history are returned.
+
+5. Optional chat verification:
+- Open assistant page.
+- Send a prompt and confirm Gemini response is returned.
+
+Deployment is considered successful when all health checks pass and end-to-end image analysis works in the deployed app.
+
 ## API Quick Checks
 
 ### Health
