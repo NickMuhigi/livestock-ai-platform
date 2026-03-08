@@ -1,22 +1,21 @@
 services:
-  # FastAPI Backend (Python ML Service)
+  # FastAPI Backend (Lightweight Proxy Mode)
   - type: web
     name: livestock-backend
     runtime: python
     plan: free
     buildCommand: |
-      git lfs install
-      git lfs pull
-      test -f cattle_model.keras || (echo "cattle_model.keras is missing from build artifact" && exit 1)
       cd backend
       pip install --upgrade pip
-      pip install -r requirements.txt
-    startCommand: cd backend && uvicorn app:app --host 0.0.0.0 --port $PORT
+      pip install -r requirements_proxy.txt
+    startCommand: cd backend && uvicorn app_proxy:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: PORT
         value: 7860
+      - key: HF_SPACE_URL
+        sync: false
     healthCheckPath: /health
     autoDeploy: true
 
