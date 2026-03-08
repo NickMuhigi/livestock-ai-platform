@@ -14,6 +14,9 @@ const SUPPORTED_DISEASE_TYPES = new Set([
 
 // Hugging Face API configuration
 const HF_API_URL = process.env.HF_MODEL_API_URL || "https://your-space-name.hf.space/predict";
+const HF_API_TOKEN = process.env.HF_API_TOKEN?.trim();
+const HF_MAX_RETRIES = 3;
+const HF_RETRY_BASE_DELAY_MS = 1200;
 
 interface ModelPredictions {
   healthy: number;
@@ -28,28 +31,58 @@ interface ModelPredictions {
 
 async function analyzeCattleImage(imageBuffer: Buffer): Promise<ModelPredictions> {
   try {
-    // Create form data with image
-    const formData = new FormData();
-    const blob = new Blob([imageBuffer], { type: "image/jpeg" });
-    formData.append("file", blob, "image.jpg");
+    const buildRequestBody = () => {
+      const formData = new FormData();
+      const blob = new Blob([imageBuffer], { type: "image/jpeg" });
+      formData.append("file", blob, "image.jpg");
+      return formData;
+    };
 
-    // Call Hugging Face API
-    const response = await fetch(HF_API_URL, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HF API error: ${response.status} ${response.statusText}`);
+    const headers: HeadersInit = {};
+    if (HF_API_TOKEN) {
+      headers.Authorization = `Bearer ${HF_API_TOKEN}`;
     }
 
-    const result = await response.json();
-    
-    if (!result.success || !result.predictions) {
-      throw new Error("Invalid response from model API");
+    let lastStatus = 0;
+    let lastStatusText = "";
+    let lastErrorBody = "";
+
+    // Retry transient HF failures caused by Space cold starts or model warm-up.
+    for (let attempt = 1; attempt <= HF_MAX_RETRIES; attempt += 1) {
+      const response = await fetch(HF_API_URL, {
+        method: "POST",
+        headers,
+        body: buildRequestBody(),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+
+        if (!result.success || !result.predictions) {
+          throw new Error("Invalid response from model API");
+        }
+
+        return result.predictions;
+      }
+
+      lastStatus = response.status;
+      lastStatusText = response.statusText;
+      lastErrorBody = (await response.text()).slice(0, 300);
+
+      const isRetriable = response.status === 503 || response.status === 502 || response.status === 504;
+      if (!isRetriable || attempt === HF_MAX_RETRIES) {
+        break;
+      }
+
+      const backoff = HF_RETRY_BASE_DELAY_MS * attempt;
+      await new Promise((resolve) => setTimeout(resolve, backoff));
     }
 
-    return result.predictions;
+    if (lastErrorBody) {
+      throw new Error(`HF API error: ${lastStatus} ${lastStatusText} - ${lastErrorBody}`);
+    }
+
+    throw new Error(`HF API error: ${lastStatus} ${lastStatusText}`);
   } catch (error) {
     console.error("Model inference error:", error);
     throw new Error(`Failed to analyze image: ${error instanceof Error ? error.message : "Unknown error"}`);
