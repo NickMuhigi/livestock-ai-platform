@@ -50,11 +50,30 @@ export async function GET(req: NextRequest) {
       orderBy: { appointmentDate: "desc" },
     });
 
-    console.log("Returning appointments with linked analysis:", appointments);
+    // Backfill analysis for older appointments that were created before analysisId existed.
+    const appointmentsWithFallbackAnalysis = await Promise.all(
+      appointments.map(async (appointment) => {
+        if (appointment.analysis) {
+          return appointment;
+        }
+
+        const latestAnalysis = await prisma.analysis.findFirst({
+          where: { userId: appointment.userId },
+          orderBy: { createdAt: "desc" },
+        });
+
+        return {
+          ...appointment,
+          analysis: latestAnalysis,
+        };
+      })
+    );
+
+    console.log("Returning appointments with linked analysis:", appointmentsWithFallbackAnalysis);
 
     return NextResponse.json({
       success: true,
-      appointments,
+      appointments: appointmentsWithFallbackAnalysis,
     });
   } catch (error) {
     console.error("Failed to fetch vet appointments:", error);

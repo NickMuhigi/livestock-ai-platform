@@ -4,17 +4,23 @@ import nodemailer from "nodemailer";
 // For Gmail: use an App Password (not your regular password)
 // For other services: adjust the SMTP configuration accordingly
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
-  },
-  // Add timeout to prevent hanging
-  connectionTimeout: 10000, // 10 seconds
-  greetingTimeout: 10000, // 10 seconds
-  socketTimeout: 10000, // 10 seconds
-});
+const emailUser = process.env.EMAIL_USER;
+const emailPassword = process.env.EMAIL_PASSWORD;
+
+const transporter =
+  emailUser && emailPassword
+    ? nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: emailUser,
+          pass: emailPassword,
+        },
+        // Add timeout to prevent hanging
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
+      })
+    : null;
 
 export interface EmailOptions {
   to: string;
@@ -24,8 +30,12 @@ export interface EmailOptions {
 
 export async function sendEmail(options: EmailOptions): Promise<void> {
   try {
+    if (!transporter) {
+      throw new Error("Email is not configured. Set EMAIL_USER and EMAIL_PASSWORD.");
+    }
+
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: process.env.EMAIL_FROM || emailUser,
       ...options,
     });
   } catch (error) {

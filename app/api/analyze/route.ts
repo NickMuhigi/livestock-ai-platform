@@ -449,12 +449,15 @@ async function findNearestVeterinaryClinic(options: {
     return null;
   }
 
+  const latitude = options.latitude;
+  const longitude = options.longitude;
+
   try {
     // Expanded bbox from point (±0.15 degrees ≈ 15-17km) for better coverage
-    const latMin = options.latitude - 0.15;
-    const latMax = options.latitude + 0.15;
-    const lonMin = options.longitude - 0.15;
-    const lonMax = options.longitude + 0.15;
+    const latMin = latitude - 0.15;
+    const latMax = latitude + 0.15;
+    const lonMin = longitude - 0.15;
+    const lonMax = longitude + 0.15;
 
     // Overpass API query for veterinary clinics
     const query = `[out:json][timeout:20];
@@ -464,7 +467,7 @@ async function findNearestVeterinaryClinic(options: {
 );
 out body geom;`;
 
-    console.log(`🔍 Searching for veterinary clinics near (${options.latitude}, ${options.longitude})`);
+    console.log(`🔍 Searching for veterinary clinics near (${latitude}, ${longitude})`);
 
     const response = await fetchWithTimeout("https://overpass-api.de/api/interpreter", {
       method: "POST",
@@ -476,7 +479,15 @@ out body geom;`;
 
     if (!response.ok) {
       console.log(`✗ Overpass API returned HTTP ${response.status}`);
-      return null;
+      const fallbackDistrict = findNearestRwandaDistrict(latitude, longitude);
+      return fallbackDistrict
+        ? {
+            name: `${fallbackDistrict} District Veterinary Office`,
+            address: `${fallbackDistrict} District`,
+            phone: null,
+            distanceKm: 0,
+          }
+        : null;
     }
 
     const data = (await response.json()) as {
@@ -491,7 +502,15 @@ out body geom;`;
 
     if (!data.elements || data.elements.length === 0) {
       console.log(`✗ No veterinary clinics found within ~15km radius`);
-      return null;
+      const fallbackDistrict = findNearestRwandaDistrict(latitude, longitude);
+      return fallbackDistrict
+        ? {
+            name: `${fallbackDistrict} District Veterinary Office`,
+            address: `${fallbackDistrict} District`,
+            phone: null,
+            distanceKm: 0,
+          }
+        : null;
     }
 
     console.log(`✓ Found ${data.elements.length} veterinary clinic(s) nearby`);
@@ -525,8 +544,8 @@ out body geom;`;
     // Sort by distance and return nearest
     clinics.sort(
       (a, b) =>
-        haversineKm(options.latitude, options.longitude, a.lat, a.lon) -
-        haversineKm(options.latitude, options.longitude, b.lat, b.lon)
+        haversineKm(latitude, longitude, a.lat, a.lon) -
+        haversineKm(latitude, longitude, b.lat, b.lon)
     );
 
     const nearest = clinics[0];
@@ -554,12 +573,20 @@ out body geom;`;
       address: clinicAddress,
       phone: nearest.phone,
       distanceKm: Number(
-        haversineKm(options.latitude, options.longitude, nearest.lat, nearest.lon).toFixed(1)
+        haversineKm(latitude, longitude, nearest.lat, nearest.lon).toFixed(1)
       ),
     };
   } catch (error) {
     console.error(`✗ Failed to find veterinary clinic:`, error);
-    return null;
+    const fallbackDistrict = findNearestRwandaDistrict(latitude, longitude);
+    return fallbackDistrict
+      ? {
+          name: `${fallbackDistrict} District Veterinary Office`,
+          address: `${fallbackDistrict} District`,
+          phone: null,
+          distanceKm: 0,
+        }
+      : null;
   }
 }
 

@@ -27,6 +27,14 @@ interface Appointment {
   } | null
 }
 
+function resolveImageUrl(imageUrl: string): string {
+  if (!imageUrl) return ""
+  if (/^https?:\/\//i.test(imageUrl)) return imageUrl
+  if (typeof window === "undefined") return imageUrl
+  if (imageUrl.startsWith("/")) return `${window.location.origin}${imageUrl}`
+  return `${window.location.origin}/${imageUrl}`
+}
+
 export default function VetAppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
@@ -173,7 +181,7 @@ export default function VetAppointmentsPage() {
                 <div className="lg:w-1/4 bg-secondary flex items-center justify-center p-6 min-h-80">
                   {appointment.analysis ? (
                     <img
-                      src={appointment.analysis.imageUrl}
+                      src={resolveImageUrl(appointment.analysis.imageUrl)}
                       alt="Uploaded cattle image"
                       className="max-h-96 max-w-full object-contain rounded-lg shadow-sm"
                     />
