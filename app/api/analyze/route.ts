@@ -30,14 +30,28 @@ function toDbDiseaseType(detectedDisease: string): string {
   return "HEALTHY";
 }
 
-const MODEL_API_URLS = (
-  process.env.MODEL_API_URLS ||
-  process.env.MODEL_API_URL ||
-  "http://127.0.0.1:7860/predict,http://127.0.0.1:8010/predict"
-)
-  .split(",")
-  .map((url) => url.trim())
-  .filter(Boolean);
+const HF_FALLBACK_PREDICT_URL =
+  "https://nickmuhigi-livestock-disease-detector.hf.space/predict";
+
+function buildModelApiUrls(): string[] {
+  const configured = (process.env.MODEL_API_URLS || process.env.MODEL_API_URL || "")
+    .split(",")
+    .map((url) => url.trim())
+    .filter(Boolean);
+
+  if (configured.length > 0) {
+    // Keep user-configured endpoints first, then add a known-good hosted fallback.
+    return Array.from(new Set([...configured, HF_FALLBACK_PREDICT_URL]));
+  }
+
+  return [
+    "http://127.0.0.1:7860/predict",
+    "http://127.0.0.1:8010/predict",
+    HF_FALLBACK_PREDICT_URL,
+  ];
+}
+
+const MODEL_API_URLS = buildModelApiUrls();
 
 type ModelPredictions = PredictionResult;
 
@@ -87,8 +101,12 @@ async function analyzeCattleImage(
 
   if (isProductionRuntime) {
     const apiMessage = apiErrors.length > 0 ? apiErrors.join(" | ") : "No API endpoints configured";
+    const endpointHint =
+      MODEL_API_URLS.length > 0
+        ? MODEL_API_URLS.join(", ")
+        : "https://<your-backend>.onrender.com/predict";
     throw new Error(
-      `Failed to analyze image: model API unavailable (${apiMessage}). Set MODEL_API_URL to your backend predict endpoint, e.g. https://livestock-backend.onrender.com/predict`
+      `Failed to analyze image: model API unavailable (${apiMessage}). Check MODEL_API_URL(S). Current endpoints: ${endpointHint}`
     );
   }
 
