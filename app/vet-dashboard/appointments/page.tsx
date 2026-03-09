@@ -29,6 +29,11 @@ interface Appointment {
 
 function resolveImageUrl(imageUrl: string): string {
   if (!imageUrl) return ""
+  // If already normalized to /api/uploads/, return as is
+  if (imageUrl.startsWith("/api/uploads/")) {
+    return imageUrl
+  }
+  // If starts with /uploads/, normalize to /api/uploads/
   if (imageUrl.startsWith("/uploads/")) {
     return `/api/uploads/${imageUrl.replace(/^\/uploads\//, "")}`
   }
