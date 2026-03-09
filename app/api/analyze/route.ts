@@ -211,6 +211,54 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Rwanda's districts and their approximate center coordinates
+const RWANDA_DISTRICTS = [
+  { name: "Bugesera", lat: -2.024, lon: 30.604 },
+  { name: "Gatsibo", lat: -1.943, lon: 30.755 },
+  { name: "Kayonza", lat: -2.109, lon: 30.949 },
+  { name: "Kirehe", lat: -2.282, lon: 31.197 },
+  { name: "Ngoma", lat: -2.442, lon: 30.673 },
+  { name: "Kigali City", lat: -1.950, lon: 30.060 },
+  { name: "Muhanga", lat: -2.024, lon: 30.604 },
+  { name: "Nyarugenge", lat: -1.960, lon: 30.045 },
+  { name: "Kamonyi", lat: -1.898, lon: 29.998 },
+  { name: "Kicukiro", lat: -1.946, lon: 30.062 },
+  { name: "Gasabo", lat: -1.940, lon: 30.138 },
+  { name: "Rulindo", lat: -1.449, lon: 29.569 },
+  { name: "Musanze", lat: -1.477, lon: 29.649 },
+  { name: "Gicumbi", lat: -1.631, lon: 29.953 },
+  { name: "Gakenke", lat: -1.782, lon: 30.039 },
+  { name: "Burera", lat: -1.551, lon: 29.793 },
+  { name: "Nyabihu", lat: -1.831, lon: 29.461 },
+  { name: "Rubavu", lat: -1.485, lon: 29.268 },
+  { name: "Rusizi", lat: -2.496, lon: 29.015 },
+  { name: "Rustenyi", lat: -1.621, lon: 29.282 },
+  { name: "Karongi", lat: -2.061, lon: 29.255 },
+  { name: "Rutsiro", lat: -2.229, lon: 29.387 },
+  { name: "Huye", lat: -2.605, lon: 29.746 },
+  { name: "Nyanza", lat: -2.508, lon: 29.819 },
+  { name: "Nyamagabe", lat: -2.703, lon: 29.674 },
+  { name: "Nyaruguru", lat: -2.929, lon: 29.236 },
+];
+
+function findNearestRwandaDistrict(latitude: number, longitude: number): string | null {
+  if (RWANDA_DISTRICTS.length === 0) return null;
+  
+  let nearest = RWANDA_DISTRICTS[0];
+  let minDistance = haversineKm(latitude, longitude, nearest.lat, nearest.lon);
+  
+  for (const district of RWANDA_DISTRICTS.slice(1)) {
+    const distance = haversineKm(latitude, longitude, district.lat, district.lon);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearest = district;
+    }
+  }
+  
+  // Only use if within ~80 km (reasonable Rwanda extent with buffer)
+  return minDistance < 80 ? nearest.name : null;
+}
+
 function pickDistrict(address?: Record<string, string | undefined>): string | null {
   if (!address) return null;
   // For Rwanda: prioritize state (province), then city_district, then county, etc.
@@ -283,7 +331,8 @@ async function resolveDistrictFromCoordinates(
     }, 10000);
 
     if (!response.ok) {
-      return null;
+      console.log(`✗ Nominatim returned HTTP ${response.status}, falling back to geographic lookup`);
+      return findNearestRwandaDistrict(latitude, longitude);
     }
 
     const payload = (await response.json()) as {
@@ -292,13 +341,16 @@ async function resolveDistrictFromCoordinates(
     
     const district = pickDistrict(payload.address);
     if (district) {
-      console.log(`✓ Resolved district from coordinates: ${district} (address keys: ${Object.keys(payload.address || {}).join(", ")})`);
+      console.log(`✓ Resolved district from Nominatim: ${district} (address keys: ${Object.keys(payload.address || {}).join(", ")})`);
+      return district;
     }
     
-    return district;
+    // Nominatim didn't have a district field, try geographic fallback
+    console.log(`✗ Nominatim had no district field, falling back to geographic lookup`);
+    return findNearestRwandaDistrict(latitude, longitude);
   } catch (error) {
-    console.error(`✗ Failed to resolve district:`, error);
-    return null;
+    console.error(`✗ Failed to resolve district from Nominatim (${error}), using geographic lookup`, error);
+    return findNearestRwandaDistrict(latitude, longitude);
   }
 }
 
