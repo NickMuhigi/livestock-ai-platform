@@ -143,8 +143,8 @@ async function analyzeCattleImage(
   }
 }
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(process.cwd(), "public", "uploads");
+// Runtime writable uploads directory (works reliably on Render-like environments)
+const uploadsDir = path.join(process.cwd(), "uploads");
 
 async function ensureUploadsDir() {
   try {
@@ -186,7 +186,7 @@ async function saveImageBuffer(options: {
   await ensureUploadsDir();
   const filepath = path.join(uploadsDir, options.filename);
   await fs.writeFile(filepath, options.imageBuffer);
-  return `/uploads/${options.filename}`;
+  return `/api/uploads/${options.filename}`;
 }
 
 
@@ -439,6 +439,69 @@ async function resolveAddressFromCoordinates(
   }
 }
 
+async function searchVeterinaryClinicByDistrict(
+  latitude: number,
+  longitude: number
+): Promise<{
+  name: string;
+  address: string;
+  phone: string | null;
+  distanceKm: number;
+} | null> {
+  const district = findNearestRwandaDistrict(latitude, longitude);
+  if (!district) return null;
+
+  try {
+    const query = encodeURIComponent(`veterinary clinic ${district} Rwanda`);
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${query}&limit=5&addressdetails=1`;
+    const response = await fetchWithTimeout(
+      url,
+      {
+        headers: {
+          "User-Agent": "HerdAI/1.0 (clinic-search)",
+        },
+        cache: "no-store",
+      },
+      10000
+    );
+
+    if (!response.ok) return null;
+
+    const results = (await response.json()) as Array<{
+      display_name?: string;
+      name?: string;
+      lat?: string;
+      lon?: string;
+      address?: Record<string, string | undefined>;
+    }>;
+
+    if (!results || results.length === 0) return null;
+
+    const best = results.find((result) => {
+      const haystack = `${result.name || ""} ${result.display_name || ""}`.toLowerCase();
+      return haystack.includes("vet") || haystack.includes("veterinary");
+    }) || results[0];
+
+    const resultLat = Number(best.lat);
+    const resultLon = Number(best.lon);
+    if (!Number.isFinite(resultLat) || !Number.isFinite(resultLon)) return null;
+
+    const address = formatAddressFromParts(best.address) !== "Address not available"
+      ? formatAddressFromParts(best.address)
+      : (best.display_name?.split(",").slice(0, 3).join(", ").trim() || `${district} District`);
+
+    return {
+      name: best.name || "Veterinary Clinic",
+      address,
+      phone: null,
+      distanceKm: Number(haversineKm(latitude, longitude, resultLat, resultLon).toFixed(1)),
+    };
+  } catch (error) {
+    console.error("District clinic search failed:", error);
+    return null;
+  }
+}
+
 
 
 async function findNearestVeterinaryClinic(options: {
@@ -479,15 +542,7 @@ out body geom;`;
 
     if (!response.ok) {
       console.log(`✗ Overpass API returned HTTP ${response.status}`);
-      const fallbackDistrict = findNearestRwandaDistrict(latitude, longitude);
-      return fallbackDistrict
-        ? {
-            name: `${fallbackDistrict} District Veterinary Office`,
-            address: `${fallbackDistrict} District`,
-            phone: null,
-            distanceKm: 0,
-          }
-        : null;
+      return await searchVeterinaryClinicByDistrict(latitude, longitude);
     }
 
     const data = (await response.json()) as {
@@ -502,15 +557,7 @@ out body geom;`;
 
     if (!data.elements || data.elements.length === 0) {
       console.log(`✗ No veterinary clinics found within ~15km radius`);
-      const fallbackDistrict = findNearestRwandaDistrict(latitude, longitude);
-      return fallbackDistrict
-        ? {
-            name: `${fallbackDistrict} District Veterinary Office`,
-            address: `${fallbackDistrict} District`,
-            phone: null,
-            distanceKm: 0,
-          }
-        : null;
+      return await searchVeterinaryClinicByDistrict(latitude, longitude);
     }
 
     console.log(`✓ Found ${data.elements.length} veterinary clinic(s) nearby`);
@@ -578,15 +625,7 @@ out body geom;`;
     };
   } catch (error) {
     console.error(`✗ Failed to find veterinary clinic:`, error);
-    const fallbackDistrict = findNearestRwandaDistrict(latitude, longitude);
-    return fallbackDistrict
-      ? {
-          name: `${fallbackDistrict} District Veterinary Office`,
-          address: `${fallbackDistrict} District`,
-          phone: null,
-          distanceKm: 0,
-        }
-      : null;
+    return await searchVeterinaryClinicByDistrict(latitude, longitude);
   }
 }
 

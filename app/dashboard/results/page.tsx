@@ -29,6 +29,14 @@ interface ResultCard {
   isHealthy: boolean
 }
 
+function resolveAnalysisImageUrl(imageUrl?: string | null): string | null {
+  if (!imageUrl) return null
+  if (imageUrl.startsWith("/uploads/")) {
+    return `/api/uploads/${imageUrl.replace(/^\/uploads\//, "")}`
+  }
+  return imageUrl
+}
+
 function AnimatedBar({ target, color }: { target: number; color: string }) {
   const [width, setWidth] = useState(0)
   useEffect(() => {
@@ -145,7 +153,7 @@ export default function ResultsPage() {
     })
     .sort((a, b) => b.confidence - a.confidence)
 
-  const normalizedAnalysisImage = analysis?.imageUrl || null
+  const normalizedAnalysisImage = resolveAnalysisImageUrl(analysis?.imageUrl || null)
 
   // Prefer user's local preview first so results page always shows what was uploaded.
   const displayImage = uploadedPreview || normalizedAnalysisImage

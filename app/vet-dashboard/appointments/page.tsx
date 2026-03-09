@@ -29,6 +29,9 @@ interface Appointment {
 
 function resolveImageUrl(imageUrl: string): string {
   if (!imageUrl) return ""
+  if (imageUrl.startsWith("/uploads/")) {
+    return `/api/uploads/${imageUrl.replace(/^\/uploads\//, "")}`
+  }
   if (/^https?:\/\//i.test(imageUrl)) return imageUrl
   if (typeof window === "undefined") return imageUrl
   if (imageUrl.startsWith("/")) return `${window.location.origin}${imageUrl}`

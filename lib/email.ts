@@ -6,21 +6,36 @@ import nodemailer from "nodemailer";
 
 const emailUser = process.env.EMAIL_USER;
 const emailPassword = process.env.EMAIL_PASSWORD;
+const smtpHost = process.env.SMTP_HOST;
+const smtpPort = Number(process.env.SMTP_PORT || "587");
+const smtpSecure = String(process.env.SMTP_SECURE || "false").toLowerCase() === "true";
 
 const transporter =
-  emailUser && emailPassword
+  smtpHost && emailUser && emailPassword
     ? nodemailer.createTransport({
-        service: "gmail",
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpSecure,
         auth: {
           user: emailUser,
           pass: emailPassword,
         },
-        // Add timeout to prevent hanging
         connectionTimeout: 10000,
         greetingTimeout: 10000,
         socketTimeout: 10000,
       })
-    : null;
+    : emailUser && emailPassword
+      ? nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: emailUser,
+            pass: emailPassword,
+          },
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 10000,
+        })
+      : null;
 
 export interface EmailOptions {
   to: string;
@@ -31,7 +46,7 @@ export interface EmailOptions {
 export async function sendEmail(options: EmailOptions): Promise<void> {
   try {
     if (!transporter) {
-      throw new Error("Email is not configured. Set EMAIL_USER and EMAIL_PASSWORD.");
+      throw new Error("Email is not configured. Set EMAIL_USER and EMAIL_PASSWORD (and optionally SMTP_HOST/SMTP_PORT/SMTP_SECURE).");
     }
 
     await transporter.sendMail({

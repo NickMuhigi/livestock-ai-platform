@@ -27,6 +27,14 @@ interface Appointment {
   } | null
 }
 
+function resolveImageUrl(imageUrl: string): string {
+  if (!imageUrl) return ""
+  if (imageUrl.startsWith("/uploads/")) {
+    return `/api/uploads/${imageUrl.replace(/^\/uploads\//, "")}`
+  }
+  return imageUrl
+}
+
 export default function VetDashboardPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
@@ -175,7 +183,7 @@ export default function VetDashboardPage() {
                 {appointment.analysis ? (
                   <div className="md:w-1/3 bg-secondary flex items-center justify-center p-4">
                     <img
-                      src={appointment.analysis.imageUrl}
+                      src={resolveImageUrl(appointment.analysis.imageUrl)}
                       alt="Uploaded cattle image"
                       className="max-h-80 max-w-full object-contain rounded"
                     />
