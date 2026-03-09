@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get all appointments for this vet
+    // Get all appointments for this vet with linked analysis
     const appointments = await prisma.appointment.findMany({
       where: { vetId: payload.userId },
       include: {
@@ -45,31 +45,16 @@ export async function GET(req: NextRequest) {
             email: true,
           },
         },
+        analysis: true,
       },
       orderBy: { appointmentDate: "desc" },
     });
 
-    // Fetch latest analysis for each user
-    const appointmentsWithAnalysis = await Promise.all(
-      appointments.map(async (apt) => {
-        const latestAnalysis = await prisma.analysis.findFirst({
-          where: { userId: apt.userId },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        });
-        console.log(`Analysis for user ${apt.userId}:`, latestAnalysis);
-        return {
-          ...apt,
-          analysis: latestAnalysis,
-        };
-      })
-    );
-
-    console.log("Returning appointments with analysis:", appointmentsWithAnalysis);
+    console.log("Returning appointments with linked analysis:", appointments);
 
     return NextResponse.json({
       success: true,
-      appointments: appointmentsWithAnalysis,
+      appointments,
     });
   } catch (error) {
     console.error("Failed to fetch vet appointments:", error);

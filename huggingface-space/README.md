@@ -14,7 +14,7 @@ FastAPI service for detecting diseases in cattle from images using a trained Ten
 
 ## Model Details
 
-- **Input**: RGB images (automatically resized to 224x224)
+- **Input**: RGB images (automatically resized to the model's expected input size)
 - **Output**: Disease classification
 - **Classes**: 
   - FOOT_AND_MOUTH

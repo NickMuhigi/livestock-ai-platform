@@ -13,6 +13,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 logger.info("Starting imports...")
+import io
 import numpy as np
 logger.info("✓ NumPy imported")
 from PIL import Image
@@ -278,10 +279,6 @@ async def predict_disease(file: UploadFile = File(...)):
             status_code=500,
             detail=f"Prediction failed: {str(e)}"
         )
-
-
-# Add missing import for BytesIO
-import io
 
 
 if __name__ == "__main__":

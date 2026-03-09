@@ -135,6 +135,10 @@ export default function BookingPage() {
     setLoading(true)
     setError("")
 
+    // Create abort controller for timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+
     try {
       const token = localStorage.getItem("authToken")
       if (!token) {
@@ -159,6 +163,18 @@ export default function BookingPage() {
       const appointmentDate = new Date(selectedDate)
       appointmentDate.setHours(hours, minutesStr || 0, 0, 0)
 
+      // Get the latest analysis ID from localStorage
+      const savedAnalysis = localStorage.getItem("latestAnalysis")
+      let analysisId: string | undefined
+      if (savedAnalysis) {
+        try {
+          const analysisData = JSON.parse(savedAnalysis)
+          analysisId = analysisData.id
+        } catch (e) {
+          console.error("Failed to parse analysis data:", e)
+        }
+      }
+
       const response = await fetch("/api/appointments", {
         method: "POST",
         headers: {
@@ -169,8 +185,12 @@ export default function BookingPage() {
           appointmentDate: appointmentDate.toISOString(),
           reason: notes || "Appointment with veterinary doctor",
           vetId: selectedVet,
+          analysisId,
         }),
+        signal: controller.signal,
       })
+
+      clearTimeout(timeoutId)
 
       const parsed = await parseApiResponse<{ appointment?: Appointment; error?: unknown }>(
         response,
@@ -189,9 +209,18 @@ export default function BookingPage() {
 
       setBooked(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred")
+      if (err instanceof Error) {
+        if (err.name === "AbortError") {
+          setError("Request timed out. Please try again.")
+        } else {
+          setError(err.message)
+        }
+      } else {
+        setError("An error occurred")
+      }
       console.error("Booking error:", err)
     } finally {
+      clearTimeout(timeoutId)
       setLoading(false)
     }
   }, [selectedVet, selectedDate, selectedTime, notes])

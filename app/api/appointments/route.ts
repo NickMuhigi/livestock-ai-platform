@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { appointmentDate, reason, vetId } = validationResult.data;
+    const analysisId = body.analysisId; // Get analysisId from body
 
     // Create appointment
     const appointment = await prisma.appointment.create({
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
         appointmentDate,
         reason: reason || null,
         vetId: vetId || null,
+        analysisId: analysisId || null,
         status: "PENDING",
       },
     });
@@ -79,11 +81,18 @@ export async function POST(req: NextRequest) {
             reason || ""
           );
 
-          await sendEmail({
+          // Use Promise.race to add a timeout wrapper
+          const emailPromise = sendEmail({
             to: vet.email,
             subject: `New Appointment Booking from ${user.name}`,
             html: emailContent,
           });
+
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Email timeout")), 15000)
+          );
+
+          await Promise.race([emailPromise, timeoutPromise]);
         }
       } catch (emailError) {
         console.error("Failed to send vet notification email:", emailError);

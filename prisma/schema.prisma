@@ -62,6 +62,8 @@ model Analysis {
   detectedDisease String
   advice    String?
   
+  appointments Appointment[]
+  
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -75,6 +77,9 @@ model Appointment {
   
   vetId     String?
   vet       User?      @relation("VetAppointments", fields: [vetId], references: [id], onDelete: SetNull)
+  
+  analysisId String?
+  analysis   Analysis?  @relation(fields: [analysisId], references: [id], onDelete: SetNull)
   
   appointmentDate DateTime
   reason    String?

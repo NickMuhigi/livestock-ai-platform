@@ -71,8 +71,13 @@ async def health_check():
                 response = await client.get(hf_health_url)
                 if response.status_code == 200:
                     hf_status = response.json()
-                    status["hf_space_status"] = "healthy"
-                    status["hf_model_loaded"] = hf_status.get("model_loaded", False)
+                    reported_status = str(hf_status.get("status", "unknown")).lower()
+                    model_loaded = bool(hf_status.get("model_loaded", False))
+                    status["hf_model_loaded"] = model_loaded
+                    if reported_status == "healthy" and model_loaded:
+                        status["hf_space_status"] = "healthy"
+                    else:
+                        status["hf_space_status"] = f"{reported_status} (model_loaded={model_loaded})"
                 else:
                     status["hf_space_status"] = f"unhealthy (HTTP {response.status_code})"
         except Exception as e:
