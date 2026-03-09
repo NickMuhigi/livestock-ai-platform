@@ -140,6 +140,35 @@ function formatDiseaseLabel(disease?: string): string {
     .join(" ")
 }
 
+function normalizeDistrictLabel(raw?: string | null): string | null {
+  if (!raw) return null
+  const value = raw.trim()
+  if (!value) return null
+  if (/^near\s+-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/i.test(value)) {
+    return null
+  }
+
+  const knownDistricts = [
+    "Bugesera", "Gatsibo", "Kayonza", "Kirehe", "Ngoma", "Kigali City", "Muhanga",
+    "Nyarugenge", "Kamonyi", "Kicukiro", "Gasabo", "Rulindo", "Musanze", "Gicumbi",
+    "Gakenke", "Burera", "Nyabihu", "Rubavu", "Rusizi", "Karongi", "Rutsiro", "Huye",
+    "Nyanza", "Nyamagabe", "Nyaruguru",
+  ]
+  const upper = value.toUpperCase()
+  for (const district of knownDistricts) {
+    if (upper.includes(district.toUpperCase())) return district
+  }
+
+  const kinyarwanda = value.match(/akarere\s+ka\s+([a-z\-]+)/i)
+  if (kinyarwanda?.[1]) {
+    const token = kinyarwanda[1].trim().toLowerCase()
+    const match = knownDistricts.find((district) => district.toLowerCase() === token)
+    if (match) return match
+  }
+
+  return value
+}
+
 function buildInitialAssistantMessage(analysisData: AnalysisData): string {
   const confidenceText = analysisData.confidence
     ? `${(analysisData.confidence * 100).toFixed(0)}%`
@@ -147,14 +176,17 @@ function buildInitialAssistantMessage(analysisData: AnalysisData): string {
   const diseaseKey = analysisData.detectedDisease || ""
   const diseaseLabel = formatDiseaseLabel(analysisData.detectedDisease)
   const advice = getDiseaseAdvice(diseaseKey)
-  const districtText = analysisData.uploadDistrict
-    ? `from **${analysisData.uploadDistrict} district**`
+  const normalizedDistrict =
+    normalizeDistrictLabel(analysisData.uploadDistrict) ||
+    normalizeDistrictLabel(analysisData.nearestClinic?.address)
+  const districtText = normalizedDistrict
+    ? `from **${normalizedDistrict} district**`
     : "from your area"
 
   const firstTreatment = advice.treatment[0]
   const firstPrevention = advice.prevention[0]
 
-  const locationDisplay = analysisData.uploadDistrict || "your area"
+  const locationDisplay = normalizedDistrict || "your area"
   const vetRecommendation = analysisData.nearestClinic
     ? [
         `**Nearest veterinary clinic according to your location (${locationDisplay}):**`,

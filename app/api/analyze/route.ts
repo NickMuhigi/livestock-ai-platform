@@ -259,6 +259,39 @@ function findNearestRwandaDistrict(latitude: number, longitude: number): string 
   return minDistance < 80 ? nearest.name : null;
 }
 
+const RWANDA_DISTRICT_NAMES = new Set(
+  RWANDA_DISTRICTS.map((d) => d.name.toUpperCase())
+);
+
+function isCoordinateLabel(value?: string | null): boolean {
+  if (!value) return false;
+  return /^\s*near\s+-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?\s*$/i.test(value.trim());
+}
+
+function normalizeRwandaDistrictName(raw?: string | null): string | null {
+  if (!raw) return null;
+  const value = raw.trim();
+  if (!value || isCoordinateLabel(value)) return null;
+
+  const upper = value.toUpperCase();
+  for (const districtName of RWANDA_DISTRICT_NAMES) {
+    if (upper.includes(districtName)) {
+      const matched = RWANDA_DISTRICTS.find((d) => d.name.toUpperCase() === districtName);
+      return matched?.name ?? null;
+    }
+  }
+
+  // Handle common Kinyarwanda pattern: "Akarere ka Gasabo"
+  const kinyarwandaMatch = value.match(/akarere\s+ka\s+([a-z\-]+)/i);
+  if (kinyarwandaMatch?.[1]) {
+    const candidate = kinyarwandaMatch[1].trim().toUpperCase();
+    const matched = RWANDA_DISTRICTS.find((d) => d.name.toUpperCase() === candidate);
+    if (matched) return matched.name;
+  }
+
+  return null;
+}
+
 function pickDistrict(address?: Record<string, string | undefined>): string | null {
   if (!address) return null;
   // For Rwanda: prioritize state (province), then city_district, then county, etc.
@@ -273,9 +306,7 @@ function pickDistrict(address?: Record<string, string | undefined>): string | nu
     address.town ||
     address.administrative;
 
-  if (!candidate) return null;
-  const normalized = candidate.trim();
-  return normalized.length > 0 ? normalized : null;
+  return normalizeRwandaDistrictName(candidate);
 }
 
 function formatAddressFromParts(address?: Record<string, string | undefined>): string {
@@ -343,6 +374,14 @@ async function resolveDistrictFromCoordinates(
     if (district) {
       console.log(`✓ Resolved district from Nominatim: ${district} (address keys: ${Object.keys(payload.address || {}).join(", ")})`);
       return district;
+    }
+
+    const clinicLikeDistrict =
+      normalizeRwandaDistrictName(payload.address?.county) ||
+      normalizeRwandaDistrictName(payload.address?.city_district) ||
+      normalizeRwandaDistrictName(payload.address?.state_district);
+    if (clinicLikeDistrict) {
+      return clinicLikeDistrict;
     }
     
     // Nominatim didn't have a district field, try geographic fallback
@@ -575,17 +614,30 @@ export async function POST(req: NextRequest) {
 
     const effectiveLatitude = latitude ?? currentUser?.latitude ?? null;
     const effectiveLongitude = longitude ?? currentUser?.longitude ?? null;
+    const persistedDistrict = normalizeRwandaDistrictName(currentUser?.district);
+    const inferredDistrictFromCoordinates =
+      effectiveLatitude !== null && effectiveLongitude !== null
+        ? findNearestRwandaDistrict(effectiveLatitude, effectiveLongitude)
+        : null;
     const coordinateDistrict =
       effectiveLatitude !== null && effectiveLongitude !== null
         ? buildCoordinateLabel(effectiveLatitude, effectiveLongitude)
         : null;
-    const effectiveDistrict = resolvedDistrict || currentUser?.district || coordinateDistrict;
+    const effectiveDistrict =
+      normalizeRwandaDistrictName(resolvedDistrict) ||
+      persistedDistrict ||
+      inferredDistrictFromCoordinates ||
+      coordinateDistrict;
 
     if (resolvedDistrict || latitude !== null || longitude !== null) {
       await prisma.user.update({
         where: { id: payload.userId },
         data: {
-          district: resolvedDistrict || currentUser?.district || undefined,
+          district:
+            normalizeRwandaDistrictName(resolvedDistrict) ||
+            persistedDistrict ||
+            inferredDistrictFromCoordinates ||
+            undefined,
           latitude: latitude ?? currentUser?.latitude ?? undefined,
           longitude: longitude ?? currentUser?.longitude ?? undefined,
         },
