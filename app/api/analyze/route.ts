@@ -514,17 +514,28 @@ out body geom;`;
     );
 
     const nearest = clinics[0];
-    const resolvedAddress = nearest.address.trim().length
-      ? nearest.address
-      : await resolveAddressFromCoordinates(nearest.lat, nearest.lon);
-    const nearestAddress =
-      resolvedAddress !== "Address not available"
-        ? resolvedAddress
-        : buildCoordinateLabel(nearest.lat, nearest.lon);
+    
+    // Try to get a good address in order of preference
+    let clinicAddress = nearest.address.trim();
+    
+    // If no address from OSM tags, try reverse geocoding
+    if (!clinicAddress) {
+      clinicAddress = await resolveAddressFromCoordinates(nearest.lat, nearest.lon);
+    }
+    
+    // If still no good address, build district-based fallback
+    if (!clinicAddress || clinicAddress === "Address not available") {
+      const nearbyDistrict = findNearestRwandaDistrict(nearest.lat, nearest.lon);
+      if (nearbyDistrict) {
+        clinicAddress = `${nearbyDistrict} District`;
+      } else {
+        clinicAddress = buildCoordinateLabel(nearest.lat, nearest.lon);
+      }
+    }
 
     return {
       name: nearest.name,
-      address: nearestAddress,
+      address: clinicAddress,
       phone: nearest.phone,
       distanceKm: Number(
         haversineKm(options.latitude, options.longitude, nearest.lat, nearest.lon).toFixed(1)
