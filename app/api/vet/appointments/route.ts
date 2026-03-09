@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
     const path = require('path');
     const uploadsDir = path.join(process.cwd(), 'uploads');
 
+
     const appointmentsWithDiagnostics = await Promise.all(
       appointments.map(async (appointment) => {
         let analysis = appointment.analysis;
@@ -66,6 +67,11 @@ export async function GET(req: NextRequest) {
         }
 
         let imageUrl = analysis?.imageUrl || null;
+        // Always normalize imageUrl to start with /uploads/ if it's just a filename
+        if (imageUrl && !imageUrl.startsWith("/uploads/") && !/^https?:\/\//i.test(imageUrl)) {
+          imageUrl = `/uploads/${imageUrl.replace(/^\/+/, "")}`;
+        }
+
         let imageExists = false;
         if (imageUrl && imageUrl.startsWith('/uploads/')) {
           const filePath = path.join(uploadsDir, imageUrl.replace(/^\/uploads\//, ''));
@@ -81,6 +87,7 @@ export async function GET(req: NextRequest) {
           analysis: analysis
             ? {
                 ...analysis,
+                imageUrl, // normalized
                 imageDiagnostics: {
                   imageUrl,
                   imageExists,
