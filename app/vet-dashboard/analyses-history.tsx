@@ -75,8 +75,6 @@ export default function AnalysesHistorySection() {
 
   if (loading) return <div className="py-8 text-center text-muted-foreground">Loading analysis history...</div>
   if (error) return <div className="py-8 text-center text-red-600">{error}</div>
-  if (filtered.length === 0) return <div className="py-8 text-center text-muted-foreground">No analyses found.</div>
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 mb-4">
@@ -104,21 +102,25 @@ export default function AnalysesHistorySection() {
           className="max-w-md"
         />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map(a => (
-          <Card key={a.id} className="p-4 flex flex-col gap-2">
-            <div className="font-semibold text-foreground">{a.user.name}</div>
-            <div className="text-xs text-muted-foreground">{a.user.email}</div>
-            {a.user.district && <div className="text-xs text-muted-foreground">District: {a.user.district}</div>}
-            <div className="text-xs text-muted-foreground">{new Date(a.createdAt).toLocaleString()}</div>
-            <div className="font-medium">Disease: <span className="text-primary">{a.detectedDisease}</span></div>
-            <div className="text-xs">Confidence: {(a.confidence * 100).toFixed(1)}%</div>
-            {a.imageUrl && (
-              <img src={a.imageUrl} alt="Analysis" className="w-full h-32 object-cover rounded border" />
-            )}
-          </Card>
-        ))}
-      </div>
+      {filtered.length === 0 ? (
+        <div className="py-8 text-center text-muted-foreground">No analyses found.</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(a => (
+            <Card key={a.id} className="p-4 flex flex-col gap-2">
+              <div className="font-semibold text-foreground">{a.user.name}</div>
+              <div className="text-xs text-muted-foreground">{a.user.email}</div>
+              {a.user.district && <div className="text-xs text-muted-foreground">District: {a.user.district}</div>}
+              <div className="text-xs text-muted-foreground">{new Date(a.createdAt).toLocaleString()}</div>
+              <div className="font-medium">Disease: <span className="text-primary">{a.detectedDisease}</span></div>
+              <div className="text-xs">Confidence: {(a.confidence * 100).toFixed(1)}%</div>
+              {a.imageUrl && (
+                <img src={a.imageUrl} alt="Analysis" className="w-full h-32 object-cover rounded border" />
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
