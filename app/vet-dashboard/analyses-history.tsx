@@ -4,6 +4,13 @@ import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 
+const FILTERS = [
+  { label: "Name", value: "name" },
+  { label: "Disease", value: "disease" },
+  { label: "District", value: "district" },
+  { label: "All", value: "all" },
+]
+
 interface AnalysisWithUser {
   id: string
   imageUrl: string
@@ -21,6 +28,7 @@ interface AnalysisWithUser {
 export default function AnalysesHistorySection() {
   const [analyses, setAnalyses] = useState<AnalysisWithUser[]>([])
   const [search, setSearch] = useState("")
+  const [filter, setFilter] = useState("all")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
@@ -48,12 +56,21 @@ export default function AnalysesHistorySection() {
 
   const filtered = analyses.filter(a => {
     const q = search.toLowerCase()
-    return (
-      a.user.name.toLowerCase().includes(q) ||
-      a.user.email.toLowerCase().includes(q) ||
-      (a.user.district?.toLowerCase().includes(q) ?? false) ||
-      a.detectedDisease.toLowerCase().includes(q)
-    )
+    if (!q) return true
+    if (filter === "name") {
+      return a.user.name.toLowerCase().includes(q)
+    } else if (filter === "disease") {
+      return a.detectedDisease.toLowerCase().includes(q)
+    } else if (filter === "district") {
+      return (a.user.district?.toLowerCase().includes(q) ?? false)
+    } else {
+      return (
+        a.user.name.toLowerCase().includes(q) ||
+        a.user.email.toLowerCase().includes(q) ||
+        (a.user.district?.toLowerCase().includes(q) ?? false) ||
+        a.detectedDisease.toLowerCase().includes(q)
+      )
+    }
   })
 
   if (loading) return <div className="py-8 text-center text-muted-foreground">Loading analysis history...</div>
@@ -63,8 +80,25 @@ export default function AnalysesHistorySection() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 mb-4">
+        <select
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+          className="border rounded px-2 py-1 text-sm bg-background"
+        >
+          {FILTERS.map(f => (
+            <option key={f.value} value={f.value}>{f.label}</option>
+          ))}
+        </select>
         <Input
-          placeholder="Search by name, email, district, or disease..."
+          placeholder={
+            filter === "name"
+              ? "Search by name..."
+              : filter === "disease"
+              ? "Search by disease..."
+              : filter === "district"
+              ? "Search by district..."
+              : "Search by name, email, district, or disease..."
+          }
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="max-w-md"
