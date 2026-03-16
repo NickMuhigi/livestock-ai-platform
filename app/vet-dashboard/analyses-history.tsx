@@ -1,3 +1,5 @@
+"use client"
+
 // Image URL normalization function (same as results page)
 function resolveAnalysisImageUrl(imageUrl?: string | null): string | null {
   if (!imageUrl) return null;
@@ -12,7 +14,6 @@ function resolveAnalysisImageUrl(imageUrl?: string | null): string | null {
   }
   return imageUrl;
 }
-"use client"
 
 import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
