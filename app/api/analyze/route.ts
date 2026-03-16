@@ -88,13 +88,16 @@ async function analyzeCattleImage(
         continue;
       }
 
-      const result = (await response.json()) as {
-        success?: boolean;
-        predictions?: ModelPredictions;
-        prediction?: string;
-        confidence?: number;
-        probabilities?: Record<string, number>;
-      };
+      const rawText = await response.text();
+      // Log the full response body for debugging
+      console.error(`Model API response from ${apiUrl}:`, rawText);
+      let result: any = null;
+      try {
+        result = JSON.parse(rawText);
+      } catch (e) {
+        apiErrors.push(`${apiUrl} -> invalid JSON: ${rawText.substring(0, 200)}`);
+        continue;
+      }
 
       if (result.success && result.predictions) {
         return result.predictions;
@@ -115,7 +118,7 @@ async function analyzeCattleImage(
         };
       }
 
-      apiErrors.push(`${apiUrl} -> invalid response payload`);
+      apiErrors.push(`${apiUrl} -> invalid response payload: ${JSON.stringify(result).substring(0, 200)}`);
       continue;
     } catch (error) {
       apiErrors.push(
