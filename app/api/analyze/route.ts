@@ -96,6 +96,7 @@ async function analyzeCattleImage(
         result = JSON.parse(rawText);
       } catch (e) {
         apiErrors.push(`${apiUrl} -> invalid JSON: ${rawText.substring(0, 200)}`);
+        // Also include the raw response in the error thrown below
         continue;
       }
 
@@ -118,7 +119,7 @@ async function analyzeCattleImage(
         };
       }
 
-      apiErrors.push(`${apiUrl} -> invalid response payload: ${JSON.stringify(result).substring(0, 200)}`);
+      apiErrors.push(`${apiUrl} -> invalid response payload: ${JSON.stringify(result).substring(0, 200)} | Raw: ${rawText.substring(0, 200)}`);
       continue;
     } catch (error) {
       apiErrors.push(
@@ -133,6 +134,7 @@ async function analyzeCattleImage(
       MODEL_API_URLS.length > 0
         ? MODEL_API_URLS.join(", ")
         : "https://<your-backend>.onrender.com/predict";
+    // Include all error details in the thrown error
     throw new Error(
       `Failed to analyze image: model API unavailable (${apiMessage}). Check MODEL_API_URL(S). Current endpoints: ${endpointHint}`
     );
