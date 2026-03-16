@@ -92,10 +92,18 @@ export function useApiMutation<T>(url: string) {
             ? localStorage.getItem("authToken")
             : null;
 
-        const headers: Record<string, string> = {
-          "Content-Type": "application/json",
+        let headers: Record<string, string> = {
           ...options?.headers,
         };
+
+        let fetchBody = body;
+        // If body is FormData, do not set Content-Type
+        if (body instanceof FormData) {
+          fetchBody = body;
+        } else {
+          headers["Content-Type"] = "application/json";
+          fetchBody = body ? JSON.stringify(body) : undefined;
+        }
 
         if (token) {
           headers["Authorization"] = `Bearer ${token}`;
@@ -104,23 +112,25 @@ export function useApiMutation<T>(url: string) {
         const response = await fetch(url, {
           method: options?.method || "POST",
           headers,
-          body: body ? JSON.stringify(body) : undefined,
+          body: fetchBody,
         });
 
-        const parsed = await parseApiResponse<T>(
-          response,
-          `API error: ${response.statusText || response.status}`
-        );
+        let parsed;
+        try {
+          parsed = await response.json();
+        } catch (err) {
+          parsed = { errorMessage: "Failed to parse response as JSON" };
+        }
 
         if (!response.ok) {
           throw new Error(parsed.errorMessage || `API error: ${response.statusText}`);
         }
 
-        if (parsed.data === null) {
+        if (!parsed || parsed.data === null) {
           throw new Error(parsed.errorMessage || "Invalid API response");
         }
 
-        return parsed.data;
+        return parsed.data || parsed;
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "An error occurred";
@@ -130,7 +140,7 @@ export function useApiMutation<T>(url: string) {
         setLoading(false);
       }
     },
-    [url]
+    [url, options]
   );
 
   return { mutate, loading, error };
