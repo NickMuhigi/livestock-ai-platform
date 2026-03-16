@@ -1,3 +1,17 @@
+// Image URL normalization function (same as results page)
+function resolveAnalysisImageUrl(imageUrl?: string | null): string | null {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith("http")) {
+    return imageUrl;
+  }
+  if (imageUrl.startsWith("/uploads/")) {
+    return `/api/uploads/${imageUrl.replace(/^\/uploads\//, "")}`;
+  }
+  if (!imageUrl.startsWith("/")) {
+    return `https://huggingface.co/datasets/NickMuhigi/livestock-disease-detector/resolve/main/images/${imageUrl}`;
+  }
+  return imageUrl;
+}
 "use client"
 
 import { useState, useEffect } from "react"
@@ -115,23 +129,8 @@ export default function AnalysesHistorySection() {
               <div className="font-medium">Disease: <span className="text-primary">{a.detectedDisease}</span></div>
               <div className="text-xs">Confidence: {(a.confidence * 100).toFixed(1)}%</div>
               {a.imageUrl && (
-                <img src={resolveAnalysisImageUrl(a.imageUrl)} alt="Analysis" className="w-full h-32 object-cover rounded border" />
+                <img src={resolveAnalysisImageUrl(a.imageUrl) || undefined} alt="Analysis" className="w-full h-32 object-cover rounded border" />
               )}
-
-// Image URL normalization function (same as results page)
-function resolveAnalysisImageUrl(imageUrl?: string | null): string | null {
-  if (!imageUrl) return null;
-  if (imageUrl.startsWith("http")) {
-    return imageUrl;
-  }
-  if (imageUrl.startsWith("/uploads/")) {
-    return `/api/uploads/${imageUrl.replace(/^\/uploads\//, "")}`;
-  }
-  if (!imageUrl.startsWith("/")) {
-    return `https://huggingface.co/datasets/NickMuhigi/livestock-disease-detector/resolve/main/images/${imageUrl}`;
-  }
-  return imageUrl;
-}
             </Card>
           ))}
         </div>
