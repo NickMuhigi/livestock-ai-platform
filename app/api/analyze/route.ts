@@ -64,14 +64,19 @@ async function analyzeCattleImage(
   const apiErrors: string[] = [];
   const isProductionRuntime = process.env.NODE_ENV === "production" || Boolean(process.env.RENDER);
 
+  const FormData = require('form-data');
+  const fetch = require('node-fetch');
   for (const apiUrl of MODEL_API_URLS) {
     try {
       const formData = new FormData();
-      const blob = new Blob([imageBuffer], { type: "image/jpeg" });
-      formData.append("file", blob, "image.jpg");
+      formData.append("file", imageBuffer, {
+        filename: "image.jpg",
+        contentType: "image/jpeg"
+      });
 
       const response = await fetch(apiUrl, {
         method: "POST",
+        headers: formData.getHeaders(),
         body: formData,
       });
 
