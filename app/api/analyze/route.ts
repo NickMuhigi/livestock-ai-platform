@@ -178,10 +178,11 @@ async function saveImageBuffer(options: {
   contentType: string;
 }): Promise<string> {
 
-  // Save image locally to uploads directory
-  await ensureUploadsDir();
+  // Save image to public/uploads directory for compatibility
+  const publicUploadsDir = path.join(process.cwd(), "public", "uploads");
+  await fs.mkdir(publicUploadsDir, { recursive: true });
   const baseFilename = options.filename.split(/[\\/]/).pop();
-  const savePath = path.join(uploadsDir, baseFilename);
+  const savePath = path.join(publicUploadsDir, baseFilename);
   await fs.writeFile(savePath, options.imageBuffer);
   // Return local API URL for image access
   return `/api/uploads/${baseFilename}`;
