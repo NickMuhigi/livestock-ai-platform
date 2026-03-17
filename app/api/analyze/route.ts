@@ -178,64 +178,13 @@ async function saveImageBuffer(options: {
   contentType: string;
 }): Promise<string> {
 
-  // Hugging Face upload logic
-
-  const hfToken = process.env.HUGGINGFACE_TOKEN;
-  const hfDataset = process.env.HUGGINGFACE_DATASET || "NickMuhigi/livestock-disease-detector";
-  if (!hfToken) {
-    throw new Error("HUGGINGFACE_TOKEN environment variable not set");
-  }
-  // Only use the base filename (no directory path)
+  // Save image locally to uploads directory
+  await ensureUploadsDir();
   const baseFilename = options.filename.split(/[\\/]/).pop();
-  const uploadUrl = `https://huggingface.co/api/datasets/${hfDataset}/upload/file?repo_type=dataset`;
-  const formData = new FormData();
-  formData.append("file", options.imageBuffer, {
-    filename: baseFilename,
-    contentType: options.contentType
-  });
-  formData.append("path", `images/${baseFilename}`);
-
-  // Debug logging
-  console.log("--- Hugging Face Upload Debug ---");
-  console.log("Upload URL:", uploadUrl);
-  console.log("Token (masked):", hfToken.slice(0, 6) + "..." + hfToken.slice(-4));
-  console.log("FormData keys:", Object.keys(formData));
-  console.log("FormData path:", `images/${baseFilename}`);
-  console.log("FormData filename:", baseFilename);
-  console.log("FormData contentType:", options.contentType);
-
-  const response = await fetch(uploadUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${hfToken}`,
-      ...formData.getHeaders()
-    },
-    body: formData,
-  });
-
-  let responseBody;
-  try {
-    responseBody = await response.json();
-  } catch (e) {
-    responseBody = { error: "Failed to parse response as JSON" };
-  }
-
-  if (!response.ok) {
-    console.error("Failed to upload to Hugging Face:", response.status, responseBody);
-    throw new Error(`Failed to upload to Hugging Face: ${response.status} ${JSON.stringify(responseBody)}`);
-  }
-
-  // Log the full response for debugging
-  console.log("Hugging Face upload response:", JSON.stringify(responseBody, null, 2));
-
-  // Warn if the file is not in main branch (PR created instead)
-  if (responseBody && responseBody.url && responseBody.url.includes("/tree/")) {
-    console.warn("Image was uploaded to a PR/branch, not main. You must merge the PR in the Hugging Face UI for the image to appear in main.");
-  }
-
-  // The public URL for the uploaded file
-  // Format: https://huggingface.co/datasets/{dataset}/resolve/main/images/{filename}
-  return `https://huggingface.co/datasets/${hfDataset}/resolve/main/images/${options.filename}`;
+  const savePath = path.join(uploadsDir, baseFilename);
+  await fs.writeFile(savePath, options.imageBuffer);
+  // Return local API URL for image access
+  return `/api/uploads/${baseFilename}`;
 }
 
 
