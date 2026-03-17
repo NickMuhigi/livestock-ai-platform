@@ -5,11 +5,12 @@ import {
   analyzeCattleImage as analyzeCattleImageLocal,
   type PredictionResult,
 } from "@/lib/model-inference";
+
 import fs from "fs/promises";
 import path from "path";
 import { put } from "@vercel/blob";
-const FormData = require('form-data');
-const fetch = require('node-fetch');
+import FormData from "form-data";
+import fetch from "node-fetch";
 
 const DB_DISEASE_TYPES = new Set([
   "HEALTHY",
@@ -64,8 +65,7 @@ async function analyzeCattleImage(
   const apiErrors: string[] = [];
   const isProductionRuntime = process.env.NODE_ENV === "production" || Boolean(process.env.RENDER);
 
-  const FormData = require('form-data');
-  const fetch = require('node-fetch');
+  // ESM imports used above; do not re-require here
   for (const apiUrl of MODEL_API_URLS) {
     try {
       const formData = new FormData();
