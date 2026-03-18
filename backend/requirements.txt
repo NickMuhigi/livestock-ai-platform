@@ -1,4 +1,4 @@
-supabase==2.0.3
+supabase-py
 tensorflow
 requests
 fastapi==0.115.0
