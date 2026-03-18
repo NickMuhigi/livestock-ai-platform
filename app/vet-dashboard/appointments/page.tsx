@@ -27,8 +27,8 @@ interface Appointment {
   } | null
 }
 
-function resolveImageUrl(imageUrl: string): string {
-  if (!imageUrl) return "";
+function resolveAnalysisImageUrl(imageUrl?: string | null): string | null {
+  if (!imageUrl) return null;
   if (imageUrl.startsWith("http")) return imageUrl;
   return imageUrl;
 }
