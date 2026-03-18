@@ -1,5 +1,31 @@
 
 # Herd AI: Livestock Health Management Platform
+#
+## Demo
+- [Video walkthrough](https://drive.google.com/file/d/1IhiLub_UjQdqkYT8ZwwzWAHMCBRRLrZ3/view?usp=sharing)
+- [Live app](https://livestock-frontend.onrender.com/)
+
+## Screenshots & Testing Results
+
+Below are screenshots demonstrating core functionalities, testing with different data values, and performance on various environments. Replace these placeholders with your actual screenshots before submission.
+
+### Dashboard & Disease Analysis
+![Dashboard Screenshot](screenshots/dashboard.png)
+![Disease Analysis Screenshot](screenshots/analysis.png)
+
+### Vet Booking & History
+![Vet Booking Screenshot](screenshots/booking.png)
+![Analyses History Screenshot](screenshots/history.png)
+
+### Testing with Different Data Values
+![Healthy Cattle Result](screenshots/healthy.png)
+![Disease Detected Result](screenshots/disease.png)
+
+### Performance & Error Handling
+![Performance Screenshot](screenshots/performance.png)
+![Error Handling Screenshot](screenshots/error.png)
+- [Video walkthrough](https://drive.google.com/file/d/1IhiLub_UjQdqkYT8ZwwzWAHMCBRRLrZ3/view?usp=sharing)
+- [Live app](https://livestock-frontend.onrender.com/)
 
 ## Overview
 Herd AI is a full-stack web platform for livestock disease screening, vet booking, and herd health tracking. It uses AI-powered image analysis, persistent cloud storage, and robust authentication to deliver a seamless experience for farmers and veterinarians.
@@ -110,276 +136,6 @@ EMAIL_FROM=""
 - `npx prisma generate`, `npx prisma migrate dev`
 - `pip install -r requirements.txt`
 - `uvicorn app:app --host 0.0.0.0 --port 7860`
-
-## Contributing
-1. Create a branch: `git checkout -b feature/<name>`
-2. Commit: `git commit -m "feat: <summary>"`
-3. Push and open a PR
-# Herd AI: Livestock Health Management Platform
-
-AI-powered web platform for livestock disease screening, vet booking, and herd health tracking.
-
-## Persistent Image Uploads & Storage
-
-**Uploads are now stored in Supabase Storage (bucket: `uploads`) for production reliability.**
-- Images uploaded via the app are sent to the backend, which uploads them to Supabase Storage.
-- The backend returns a public Supabase URL for each image.
-- The frontend displays images using these Supabase URLs, ensuring images are visible everywhere (vet dashboard, results page, etc.), even after deployment/restart.
-- Local development uses `public/uploads/` for quick testing, but production always uses Supabase.
-
-### Technologies Used
-- **Frontend:** Next.js (App Router)
-- **Backend:** FastAPI (Python)
-- **Model Inference:** Keras/TensorFlow, Hugging Face Space, or FastAPI proxy
-- **Storage:** Supabase Storage (persistent, free, no credit card required)
-- **Database:** PostgreSQL + Prisma
-- **Authentication:** JWT
-- **Deployment:** Render (Blueprint for frontend/backend/db), Hugging Face Space (model API)
-
-### Deployment Workflow
-1. User uploads image via dashboard.
-2. Backend uploads image to Supabase Storage and returns public URL.
-3. Frontend displays image using Supabase URL.
-4. Analysis results and image URLs are stored in database for history and vet review.
-
-See below for full deployment and setup instructions.
-
-## Demo
-- Video: https://drive.google.com/file/d/1IhiLub_UjQdqkYT8ZwwzWAHMCBRRLrZ3/view?usp=sharing
-- Live app: https://livestock-frontend.onrender.com/
-
-## Tech Stack
-- Frontend/API: Next.js App Router (`app/`)
-- Database: PostgreSQL + Prisma (`prisma/`)
-- Auth: JWT (`lib/jwt.ts`)
-- AI chat: Gemini (`app/api/chat/route.ts`)
-- Image analysis: calls model API endpoints from `MODEL_API_URL` / `MODEL_API_URLS`
-- Optional Python model runtime: `scripts/keras_inference.py` + `cattle_model.keras`
-
-## Repository Layout
-- `app/`: pages and route handlers
-- `components/`: UI components
-- `lib/`: auth, model inference, email, helpers
-- `backend/`: optional FastAPI services (proxy and local model server)
-- `huggingface-space/`: Dockerized FastAPI model service for HF Spaces
-- `prisma/`: schema and migrations
-- `scripts/`: helper scripts including Python inference bridge
-
-## Prerequisites
-- Node.js 20+
-- npm 10+
-- PostgreSQL 14+
-- Python 3.10 or 3.11 (optional, only for local Keras inference)
-
-## Local Setup
-
-### 1. Clone and install
-```bash
-git clone <your-repo-url>
-cd livestock-ai-platform
-npm install
-```
-
-### 2. Create `.env.local`
-Create `./.env.local` with at least:
-
-```env
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/herd_ai?schema=public"
-JWT_SECRET="replace-with-a-long-random-secret"
-
-# Model API endpoint(s) used by app/api/analyze/route.ts
-# Single endpoint:
-MODEL_API_URL="http://127.0.0.1:7860/predict"
-# Or comma-separated endpoints:
-# MODEL_API_URLS="http://127.0.0.1:7860/predict,http://127.0.0.1:8010/predict"
-
-# Optional features
-GEMINI_API_KEY=""
-GEMINI_MODEL="gemini-2.5-flash"
-EMAIL_USER=""
-EMAIL_PASSWORD=""
-EMAIL_FROM=""
-```
-
-Notes:
-- The app reads `GEMINI_API_KEY` from `.env.local` in the chat route.
-- If `BLOB_READ_WRITE_TOKEN` is unset, uploads are stored in `public/uploads/` for local development.
-
-### 3. Set up database
-```bash
-npx prisma generate
-npx prisma migrate dev
-```
-
-### 4. Run the app
-```bash
-npm run dev
-```
-
-Open `http://localhost:3000`.
-
-## Model Inference Options
-
-The analysis route (`app/api/analyze/route.ts`) tries external model API endpoints first.
-
-### Option A: Use Hugging Face Space (recommended)
-Set:
-```env
-MODEL_API_URL="https://<your-space>.hf.space/predict"
-```
-
-### Option B: Use local proxy backend (`backend/app_proxy.py`)
-1. Start proxy:
-```bash
-cd backend
-pip install -r requirements_proxy.txt
-# PowerShell:
-$env:HF_SPACE_URL="https://<your-space>.hf.space/predict"
-# Bash:
-# export HF_SPACE_URL="https://<your-space>.hf.space/predict"
-uvicorn app_proxy:app --host 0.0.0.0 --port 8010
-```
-2. Point Next.js to proxy:
-```env
-MODEL_API_URL="http://127.0.0.1:8010/predict"
-```
-
-### Option C: Local Keras fallback (development only)
-If model API endpoints are unavailable and app is not in production mode, the app can fall back to local inference (`lib/model-inference.ts`) using:
-- `cattle_model.keras` in repo root, or
-- `KERAS_MODEL_PATH` env var.
-
-Python deps for fallback:
-```bash
-pip install tensorflow pillow numpy
-```
-
-Optional env vars for local fallback:
-```env
-MODEL_RUNTIME="auto"          # auto | keras | tfjs
-KERAS_MODEL_PATH="./cattle_model.keras"
-KERAS_PYTHON_BIN="python"
-TFJS_MODEL_PATH=""            # if using tfjs model.json instead
-```
-
-## Production Deployment (Render)
-
-This repo includes `render.yaml` for blueprint deployment:
-- `livestock-frontend` (Next.js)
-- `livestock-backend` (FastAPI proxy)
-- managed PostgreSQL database
-
-Quick flow:
-1. Push repo (with model handling strategy in place).
-2. Create Blueprint on Render from `render.yaml`.
-3. Set required env vars:
-   - Frontend: `DATABASE_URL`, `NEXTAUTH_URL`, `JWT_SECRET`, `MODEL_API_URL` or `MODEL_API_URLS`, optional `GEMINI_API_KEY`
-   - Backend proxy: `HF_SPACE_URL`
-4. Deploy and verify:
-   - Frontend health: `/api/health`
-   - Backend health: `/health`
-
-Detailed instructions: `RENDER_DEPLOYMENT.md`
-
-## Deployment Plan (Rubric-Aligned)
-
-This section documents a clear deployment plan with environments, tools, step-by-step execution, and verification checks.
-
-### Target Environments
-
-| Environment | Purpose | URL / Host |
-|---|---|---|
-| Local Development | Feature development and debugging | `http://localhost:3000` |
-| Model Serving (Hosted) | Production image inference API | Hugging Face Space (`https://<space>.hf.space`) |
-| Production App | User-facing deployed application | Render frontend (`https://livestock-frontend.onrender.com`) |
-| Production API Proxy | Server-side model proxy | Render backend (`https://livestock-backend.onrender.com`) |
-
-### Deployment Tools
-
-- Git + GitHub (source control and CI trigger)
-- Render Blueprint (`render.yaml`) for frontend, backend, and PostgreSQL
-- Hugging Face Spaces (Docker) for model-serving API
-- Prisma (`npx prisma migrate deploy`) for production schema migrations
-- `curl` for post-deploy smoke tests
-
-### Step-by-Step Deployment Procedure
-
-1. Prepare release branch and push code to GitHub.
-2. Deploy or update Hugging Face Space from `huggingface-space/`.
-3. Confirm HF Space runtime status is `RUNNING`.
-4. Deploy Render services using `render.yaml` Blueprint.
-5. Set Render environment variables:
-  - Frontend: `DATABASE_URL`, `NEXTAUTH_URL`, `JWT_SECRET`, `MODEL_API_URL` or `MODEL_API_URLS`, optional `GEMINI_API_KEY`
-  - Backend proxy: `HF_SPACE_URL`
-6. Allow frontend build to run Prisma commands during deploy (`npx prisma generate`, `npx prisma migrate deploy`).
-7. Run deployment verification tests (below).
-
-### Deployment Verification (Functionality Tests)
-
-Run these checks in order to verify successful deployment in the target environment.
-
-1. Frontend health endpoint:
-```bash
-curl https://livestock-frontend.onrender.com/api/health
-```
-Expected: JSON with `"status":"healthy"`.
-
-2. Backend proxy health endpoint:
-```bash
-curl https://livestock-backend.onrender.com/health
-```
-Expected: `hf_space_configured: true` and healthy or reachable HF status.
-
-3. HF Space health endpoint:
-```bash
-curl https://<your-space>.hf.space/health
-```
-Expected: runtime reachable; after first prediction, `model_loaded: true`.
-
-4. End-to-end inference test from production flow:
-- Log into deployed app.
-- Upload a cattle image in Dashboard analysis flow.
-- Confirm prediction result, confidence, and saved analysis history are returned.
-
-5. Optional chat verification:
-- Open assistant page.
-- Send a prompt and confirm Gemini response is returned.
-
-Deployment is considered successful when all health checks pass and end-to-end image analysis works in the deployed app.
-
-## API Quick Checks
-
-### Health
-```bash
-curl http://localhost:3000/api/health
-```
-
-### Auth signup
-```bash
-curl -X POST http://localhost:3000/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Test Farmer","email":"test@farm.com","password":"password123","district":"Kampala"}'
-```
-
-## Common Issues
-- `Failed to analyze image: model API unavailable`:
-  - Set `MODEL_API_URL` or `MODEL_API_URLS` to a reachable `/predict` endpoint.
-- Prisma connection errors:
-  - Verify `DATABASE_URL`, then run `npx prisma generate` and `npx prisma migrate dev`.
-- Gemini chat errors:
-  - Ensure `GEMINI_API_KEY` is valid in `.env.local`.
-- Upload failures on Vercel:
-  - Set `BLOB_READ_WRITE_TOKEN`.
-
-## Useful Commands
-```bash
-npm run dev
-npm run build
-npm run start
-npm run lint
-npx prisma generate
-npx prisma migrate dev
-```
 
 ## Contributing
 1. Create a branch: `git checkout -b feature/<name>`
