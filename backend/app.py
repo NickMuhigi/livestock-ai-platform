@@ -34,12 +34,14 @@ def resolve_class_labels() -> list[str]:
 
 
 CLASS_LABELS = resolve_class_labels()
+
 MODEL_PATH_CANDIDATES = [
     "../cattle_model.keras",
     "cattle_model.keras",
     "./cattle_model.keras",
     "../cattle_model.keras",
     "cattle_model.keras",
+]
 
 # --- Model auto-download logic ---
 import os
