@@ -2,8 +2,8 @@
 # Herd AI: Livestock Health Management Platform
 
 ## Demo & Live Deployment
-- [Video walkthrough](https://drive.google.com/file/d/1IhiLub_UjQdqkYT8ZwwzWAHMCBRRLrZ3/view?usp=sharing) — See the app in action, including disease analysis, booking, and AI chat.
-- [Live app](https://livestock-frontend.onrender.com/) — Try the platform yourself.
+[Video walkthrough](https://drive.google.com/file/d/1IhiLub_UjQdqkYT8ZwwzWAHMCBRRLrZ3/view?usp=sharing) — See the app in action, including disease analysis, booking, and AI chat.
+[Live app](https://livestock-frontend.onrender.com/) — Try the platform yourself.
 
 ## Screenshots & Testing Results
 Extensive screenshots below demonstrate core features, data variation, and performance. These are real results from production and test environments.
