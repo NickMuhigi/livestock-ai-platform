@@ -41,17 +41,43 @@ export async function GET(req: NextRequest) {
       orderBy: { appointmentDate: "desc" },
     });
 
-    // For each appointment, get the related analysis
+    // For each appointment, get the linked analysis (by analysisId),
+    // or fall back to latest analysis for the user if missing.
     const appointmentsWithAnalysis = await Promise.all(
       appointments.map(async (apt) => {
-        const latestAnalysis = await prisma.analysis.findFirst({
-          where: { userId: apt.user.id },
-          orderBy: { createdAt: "desc" },
-        });
+        let analysis = null;
+        if (apt.analysisId) {
+          analysis = await prisma.analysis.findUnique({
+            where: { id: apt.analysisId },
+          });
+        }
+        if (!analysis) {
+          analysis = await prisma.analysis.findFirst({
+            where: { userId: apt.user.id },
+            orderBy: { createdAt: "desc" },
+          });
+        }
+
+        // Normalize imageUrl as in vet/appointments/route.ts
+        let imageUrl = analysis?.imageUrl || null;
+        if (imageUrl) {
+          if (imageUrl.startsWith('http')) {
+            // Use as-is
+          } else if (imageUrl.startsWith('/uploads/')) {
+            imageUrl = `/api/uploads/${imageUrl.replace(/^\/uploads\//, '')}`;
+          } else {
+            imageUrl = `https://huggingface.co/datasets/NickMuhigi/livestock-disease-detector/resolve/main/images/${imageUrl.replace(/^\/+/,'')}`;
+          }
+        }
 
         return {
           ...apt,
-          analysis: latestAnalysis,
+          analysis: analysis
+            ? {
+                ...analysis,
+                imageUrl,
+              }
+            : null,
         };
       })
     );
