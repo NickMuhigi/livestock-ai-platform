@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch all analyses, most recent first, with user info
-    const analyses = await prisma.analysis.findMany({
+    const analysesRaw = await prisma.analysis.findMany({
       orderBy: { createdAt: "desc" },
       include: {
         user: {
@@ -65,6 +65,24 @@ export async function GET(req: NextRequest) {
           },
         },
       },
+    });
+
+    // Normalize imageUrl for each analysis
+    const analyses = analysesRaw.map((analysis) => {
+      let imageUrl = analysis.imageUrl || null;
+      if (imageUrl) {
+        if (imageUrl.startsWith('http')) {
+          // Use as-is
+        } else if (imageUrl.startsWith('/uploads/')) {
+          imageUrl = `/api/uploads/${imageUrl.replace(/^\/uploads\//, '')}`;
+        } else {
+          imageUrl = `https://huggingface.co/datasets/NickMuhigi/livestock-disease-detector/resolve/main/images/${imageUrl.replace(/^\/+/,'')}`;
+        }
+      }
+      return {
+        ...analysis,
+        imageUrl,
+      };
     });
 
     return NextResponse.json({
