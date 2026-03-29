@@ -154,24 +154,8 @@ async function analyzeCattleImage(
   }
 }
 
-// Runtime writable uploads directory (works reliably on Render-like environments)
-const uploadsDir = path.join(process.cwd(), "uploads");
 
-async function ensureUploadsDir() {
-  try {
-    await fs.mkdir(uploadsDir, { recursive: true });
-  } catch (error) {
-    console.error("Error creating uploads directory:", error);
-  }
-}
-
-function buildUploadFileName(originalName: string): string {
-  const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, "_");
-  return `${Date.now()}_${safeName}`;
-}
-
-
-// saveImageBuffer is now replaced by uploadImageToSupabase
+// All legacy file system logic removed; Supabase upload is now used exclusively.
 
 
 
