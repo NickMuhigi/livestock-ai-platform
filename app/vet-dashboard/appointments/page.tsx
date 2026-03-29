@@ -1,19 +1,23 @@
 "use client"
-
-import { useState, useEffect } from "react"
-import { Check, X, Clock, User, AlertCircle } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-
-interface Appointment {
-  id: string
-  appointmentDate: string
-  reason?: string
-  status: string
-  user: {
-    id: string
-    name: string
-    email: string
+      ) : (
+        <div className="space-y-6">
+          {Array.from(
+            new Map(
+              appointments
+                .filter(a => a.status === "PENDING")
+                .map(a => [a.id, a])
+            ).values()
+          ).map(appointment => (
+            <Card
+              key={appointment.id}
+              className={`border transition-all overflow-hidden ${
+                appointment.status === "CONFIRMED"
+                  ? "border-emerald-200 bg-emerald-500/5"
+                  : appointment.status === "CANCELLED"
+                  ? "border-red-200 bg-red-500/5 opacity-60"
+                  : "border-border hover:border-primary/50"
+              }`}>
+              <div className="flex flex-col lg:flex-row h-full">
   }
   analysis?: {
     id: string
