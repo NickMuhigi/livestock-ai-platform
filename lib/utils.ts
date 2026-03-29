@@ -1,13 +1,21 @@
 // Normalize image URLs for all backend APIs
+import { getPublicImageUrl } from "./public-image-url";
+
 export function normalizeImageUrl(imageUrl?: string | null): string | null {
   if (!imageUrl) return null;
-  if (imageUrl.startsWith('http')) {
+  if (imageUrl.startsWith("http")) {
     return imageUrl;
-  } else if (imageUrl.startsWith('/uploads/')) {
-    return `/api/uploads/${imageUrl.replace(/^\/uploads\//, '')}`;
-  } else {
-    return `https://huggingface.co/datasets/NickMuhigi/livestock-disease-detector/resolve/main/images/${imageUrl.replace(/^\/+/,'')}`;
   }
+  // If it's a Supabase Storage path (no leading slash), use public URL
+  if (!imageUrl.startsWith("/")) {
+    return getPublicImageUrl(imageUrl);
+  }
+  // If it starts with /uploads/, strip and use public URL
+  if (imageUrl.startsWith("/uploads/")) {
+    return getPublicImageUrl(imageUrl.replace(/^\/uploads\//, ""));
+  }
+  // Otherwise, return as-is (legacy or error)
+  return imageUrl;
 }
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
