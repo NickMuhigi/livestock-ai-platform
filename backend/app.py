@@ -40,6 +40,8 @@ MODEL_PATH_CANDIDATES = [
     "cattle_model.keras",
 ]
 
+
+# Lazy model loading: do not load at startup
 model = None
 model_load_error = None
 loaded_model_path = None
@@ -197,6 +199,8 @@ def get_model():
             raise
 
 
+
+# Health and root endpoints should not trigger model loading
 @app.get("/")
 async def root():
     return {
@@ -209,6 +213,7 @@ async def root():
         "input_size": MODEL_INPUT_SIZE,
         "model_source": "local_file",
     }
+
 
 
 @app.get("/health")
