@@ -21,8 +21,6 @@ COPY app.py .
 # Copy model file (will be uploaded separately)
 COPY cattle_model.keras .
 
-# Expose port (Render will set $PORT)
-EXPOSE $PORT
 
 # Set environment variable for TensorFlow
 ENV TF_CPP_MIN_LOG_LEVEL=2
